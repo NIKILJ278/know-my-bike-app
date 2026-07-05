@@ -1,0 +1,8 @@
+{
+  "appId": "com.knowmybike.app",
+  "appName": "Know My Bike",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

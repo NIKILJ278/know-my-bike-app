@@ -1,0 +1,17 @@
+node_modules
+dist
+.env
+.DS_Store
+
+# Capacitor native projects (generated locally by `npx cap add android`)
+android/
+ios/
+
+# Build outputs
+*.apk
+*.aab
+local.properties
+
+# Signing keys — never commit these
+*.keystore
+*.jks
