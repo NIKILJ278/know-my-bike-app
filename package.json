@@ -7,9 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "android:add": "npx cap add android",
-    "android:sync": "npm run build && npx cap sync android",
-    "android:open": "npx cap open android"
+    "android:add": "node ./node_modules/@capacitor/cli/bin/capacitor add android && node scripts/add-oauth-redirect.cjs",
+    "android:sync": "npm run build && node ./node_modules/@capacitor/cli/bin/capacitor sync android",
+    "android:open": "node ./node_modules/@capacitor/cli/bin/capacitor open android"
   },
   "dependencies": {
     "@capacitor/app": "^6.0.2",
