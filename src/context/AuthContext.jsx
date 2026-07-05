@@ -1,7 +1,14 @@
 import { createContext, useContext, useEffect, useState } from 'react'
+import { Capacitor } from '@capacitor/core'
+import { App as CapacitorApp } from '@capacitor/app'
+import { Browser } from '@capacitor/browser'
 import { supabase } from '../lib/supabaseClient'
 
 const AuthContext = createContext(null)
+
+// Must match the custom URL scheme used in capacitor.config.json ("appId" + "://login-callback")
+// and must also be added to Supabase Dashboard > Authentication > URL Configuration > Redirect URLs.
+const NATIVE_REDIRECT_URL = 'com.knowmybike.app://login-callback'
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
@@ -17,6 +24,21 @@ export function AuthProvider({ children }) {
       setSession(sess)
     })
     return () => sub.subscription.unsubscribe()
+  }, [])
+
+  // Native only: Google sign-in opens the system browser (Custom Tabs), and
+  // once the user approves, the OS hands control back to the app via this
+  // custom URL scheme instead of a normal http(s) redirect. Catch it here
+  // and hand the auth code to Supabase to finish the login.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+    const sub = CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
+      if (!url.startsWith(NATIVE_REDIRECT_URL)) return
+      await Browser.close().catch(() => {})
+      const { data, error } = await supabase.auth.exchangeCodeForSession(url)
+      if (!error && data?.session) setSession(data.session)
+    })
+    return () => { sub.remove() }
   }, [])
 
   useEffect(() => {
@@ -48,10 +70,17 @@ export function AuthProvider({ children }) {
 
   // ---- Google OAuth ----
   const signInWithGoogle = async () => {
+    const isNative = Capacitor.isNativePlatform()
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin },
+      options: {
+        redirectTo: isNative ? NATIVE_REDIRECT_URL : window.location.origin,
+        skipBrowserRedirect: isNative,
+      },
     })
+    if (!error && isNative && data?.url) {
+      await Browser.open({ url: data.url })
+    }
     return { data, error }
   }
 
