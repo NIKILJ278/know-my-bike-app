@@ -14,6 +14,7 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [authError, setAuthError] = useState(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -26,6 +27,23 @@ export function AuthProvider({ children }) {
     return () => sub.subscription.unsubscribe()
   }, [])
 
+  // Web only: if Google (or any OAuth) sign-in fails on Supabase's side —
+  // e.g. the redirect URL isn't in the project's allow list, or the
+  // provider isn't configured — Supabase still redirects back to the app,
+  // but with the error attached to the URL instead of a session. Without
+  // this, that error is invisible and it just looks like a silent bounce
+  // back to the login screen. Catch it here so the real reason surfaces.
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) return
+    const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : ''
+    const params = new URLSearchParams(hash || window.location.search)
+    const description = params.get('error_description') || params.get('error')
+    if (description) {
+      setAuthError(decodeURIComponent(description.replace(/\+/g, ' ')))
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+  }, [])
+
   // Native only: Google sign-in opens the system browser (Custom Tabs), and
   // once the user approves, the OS hands control back to the app via this
   // custom URL scheme instead of a normal http(s) redirect. Catch it here
@@ -35,8 +53,16 @@ export function AuthProvider({ children }) {
     const sub = CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
       if (!url.startsWith(NATIVE_REDIRECT_URL)) return
       await Browser.close().catch(() => {})
+      const query = url.includes('?') ? url.split('?')[1] : (url.split('#')[1] || '')
+      const params = new URLSearchParams(query)
+      const description = params.get('error_description') || params.get('error')
+      if (description) {
+        setAuthError(decodeURIComponent(description.replace(/\+/g, ' ')))
+        return
+      }
       const { data, error } = await supabase.auth.exchangeCodeForSession(url)
-      if (!error && data?.session) setSession(data.session)
+      if (error) setAuthError(error.message)
+      else if (data?.session) setSession(data.session)
     })
     return () => { sub.remove() }
   }, [])
@@ -111,6 +137,8 @@ export function AuthProvider({ children }) {
 
   const signOut = () => supabase.auth.signOut()
 
+  const clearAuthError = () => setAuthError(null)
+
   // ---- Profile (used by the Profile dashboard's inline "edit name") ----
   const updateProfile = async (patch) => {
     if (!session?.user) return { error: new Error('Not signed in') }
@@ -137,6 +165,8 @@ export function AuthProvider({ children }) {
     updatePassword,
     updateProfile,
     signOut,
+    authError,
+    clearAuthError,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -1,17 +1,26 @@
 import BikeLogo from '../components/BikeLogo.jsx'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import GoogleButton from '../components/GoogleButton.jsx'
 
 export default function Login() {
-  const { signInWithEmail, signInWithGoogle } = useAuth()
+  const { signInWithEmail, signInWithGoogle, authError, clearAuthError } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+
+  // Surface Google/OAuth failures reported by Supabase after the redirect
+  // back (e.g. "redirect URL not allowed") instead of failing silently.
+  useEffect(() => {
+    if (authError) {
+      setError(authError)
+      clearAuthError()
+    }
+  }, [authError])
 
   const submit = async (e) => {
     e.preventDefault()
