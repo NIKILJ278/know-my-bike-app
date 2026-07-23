@@ -97,7 +97,7 @@ export default function Logbook() {
         <LogFuelModal bikeName={activeBike.name} onClose={() => setShowModal(false)} onSave={(row) => fuel.add(row)} />
       )}
       {showModal && tab === 'Trips' && (
-        <LogTripModal bikeName={activeBike.name} onClose={() => setShowModal(false)} onSave={(row) => trips.add(row)} />
+        <LogTripModal bikeName={activeBike.name} startOdometer={activeBike.odometer_km} onClose={() => setShowModal(false)} onSave={(row) => trips.add(row)} />
       )}
     </div>
   )

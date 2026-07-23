@@ -10,14 +10,13 @@ import Logbook from './pages/Logbook.jsx'
 import Vault from './pages/Vault.jsx'
 import AskAI from './pages/AskAI.jsx'
 import Profile from './pages/Profile.jsx'
-import BikeLogo from './components/BikeLogo.jsx'
+import Wordmark from './components/Wordmark.jsx'
 import { useBikes } from './context/BikeContext'
 
 function Splash() {
   return (
     <div className="h-screen w-full flex flex-col items-center justify-center gap-3 bg-bg-light dark:bg-bg-dark">
-      <BikeLogo size={48} className="text-ink dark:text-white animate-pulse" />
-      <div className="text-2xl font-display font-extrabold text-ink dark:text-white">Know My Bike</div>
+      <Wordmark size={30} className="text-ink dark:text-white animate-pulse" />
     </div>
   )
 }

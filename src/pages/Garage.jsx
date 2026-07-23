@@ -10,7 +10,8 @@ import LogTripModal from '../components/modals/LogTripModal.jsx'
 import AddReminderModal from '../components/modals/AddReminderModal.jsx'
 import AddBikeModal from '../components/modals/AddBikeModal.jsx'
 import { formatINR, formatDate } from '../lib/format'
-import { visualFor } from '../lib/categoryVisual'
+import { visualFor, barColorFor } from '../lib/categoryVisual'
+import { BarTrend, LineTrend, DonutBreakdown } from '../components/charts/TrendCharts.jsx'
 
 export default function Garage() {
   const { profile, user } = useAuth()
@@ -33,6 +34,43 @@ export default function Garage() {
     const expLife = expenses.rows.reduce((s, r) => s + Number(r.amount), 0)
     return { monthSpend: fuelMonth + expMonth, monthFuel: fuelMonth, lifetimeSpend: fuelLife + expLife }
   }, [fuel.rows, expenses.rows])
+
+  const spendTrend = useMemo(() => {
+    const months = []
+    const now = new Date()
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      months.push({ key: `${d.getFullYear()}-${d.getMonth()}`, label: d.toLocaleDateString('en-IN', { month: 'short' }), value: 0 })
+    }
+    const byKey = Object.fromEntries(months.map((m) => [m.key, m]))
+    const add = (logged_at, amount) => {
+      const d = new Date(logged_at)
+      const key = `${d.getFullYear()}-${d.getMonth()}`
+      if (byKey[key]) byKey[key].value += Number(amount)
+    }
+    fuel.rows.forEach((r) => add(r.logged_at, r.amount))
+    expenses.rows.forEach((r) => add(r.logged_at, r.amount))
+    return months
+  }, [fuel.rows, expenses.rows])
+
+  const mileageTrend = useMemo(() => {
+    return fuel.rows
+      .filter((r) => r.mileage)
+      .sort((a, b) => Number(a.odometer_km) - Number(b.odometer_km))
+      .slice(-8)
+      .map((r) => ({ label: `${Number(r.odometer_km).toLocaleString('en-IN')}`, value: Number(r.mileage) }))
+  }, [fuel.rows])
+
+  const categoryBreakdown = useMemo(() => {
+    const totals = {}
+    if (monthFuel > 0) totals.Fuel = monthFuel
+    expenses.rows
+      .filter((r) => { const d = new Date(r.logged_at), now = new Date(); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() })
+      .forEach((r) => { totals[r.category] = (totals[r.category] || 0) + Number(r.amount) })
+    return Object.entries(totals)
+      .map(([label, value]) => ({ label, value, color: barColorFor(label) }))
+      .sort((a, b) => b.value - a.value)
+  }, [expenses.rows, monthFuel])
 
   const recentActivity = useMemo(() => {
     const items = [
@@ -107,6 +145,27 @@ export default function Garage() {
         </div>
       </div>
 
+      {spendTrend.some((m) => m.value > 0) && (
+        <div className="card p-4 mb-4">
+          <p className="font-display font-bold mb-3">Spend · last 6 months</p>
+          <BarTrend data={spendTrend} color="#F2A93B" />
+        </div>
+      )}
+
+      {mileageTrend.length > 1 && (
+        <div className="card p-4 mb-4">
+          <p className="font-display font-bold mb-3">Mileage trend (km/l)</p>
+          <LineTrend data={mileageTrend} color="#2FB6A6" />
+        </div>
+      )}
+
+      {categoryBreakdown.length > 0 && (
+        <div className="card p-4 mb-8">
+          <p className="font-display font-bold mb-3">This month's spend by category</p>
+          <DonutBreakdown data={categoryBreakdown} />
+        </div>
+      )}
+
       <div className="grid grid-cols-4 gap-2 mb-8">
         <QuickAction label="Log Fuel" onClick={() => setModal('fuel')} icon={<FuelIcon />} />
         <QuickAction label="Expense" onClick={() => setModal('expense')} icon={<ExpenseIcon />} />
@@ -165,7 +224,7 @@ export default function Garage() {
         <LogExpenseModal bikeName={activeBike.name} onClose={closeModal} onSave={(row) => expenses.add(row)} />
       )}
       {modal === 'trip' && (
-        <LogTripModal bikeName={activeBike.name} onClose={closeModal} onSave={(row) => trips.add(row)} />
+        <LogTripModal bikeName={activeBike.name} startOdometer={activeBike.odometer_km} onClose={closeModal} onSave={(row) => trips.add(row)} />
       )}
       {modal === 'reminder' && (
         <AddReminderModal bikeName={activeBike.name} onClose={closeModal} onSave={(row) => reminders.add(row)} />

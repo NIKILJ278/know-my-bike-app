@@ -1,11 +1,10 @@
-import BikeLogo from '../components/BikeLogo.jsx'
+import Wordmark from '../components/Wordmark.jsx'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import GoogleButton from '../components/GoogleButton.jsx'
 
 export default function Signup() {
-  const { signUpWithEmail, signInWithGoogle, authError, clearAuthError } = useAuth()
+  const { signUpWithEmail, authError, clearAuthError } = useAuth()
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
@@ -51,17 +50,9 @@ export default function Signup() {
   return (
     <div className="min-h-screen flex flex-col bg-bg-light dark:bg-bg-dark text-ink dark:text-white px-6 pt-16 pb-10">
       <div className="max-w-sm w-full mx-auto flex-1 flex flex-col">
-        <BikeLogo size={40} className="text-ink dark:text-white mb-4" />
+        <Wordmark size={28} className="text-ink dark:text-white mb-4" />
         <h1 className="text-3xl font-display font-extrabold">Create your account</h1>
         <p className="text-ink/50 dark:text-white/50 mt-1 mb-8">Track fuel, service and every rupee spent on your ride.</p>
-
-        <GoogleButton onClick={async () => { const { error } = await signInWithGoogle(); if (error) setError(error.message) }} label="Sign up with Google" />
-
-        <div className="flex items-center gap-3 my-6">
-          <div className="h-px bg-black/10 dark:bg-white/10 flex-1" />
-          <span className="text-xs text-ink/40 dark:text-white/40">OR</span>
-          <div className="h-px bg-black/10 dark:bg-white/10 flex-1" />
-        </div>
 
         <form onSubmit={submit} className="flex flex-col gap-4">
           <input className="input" type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />

@@ -77,16 +77,21 @@ declare
   prev record;
 begin
   if new.full_tank then
+    -- Mileage is only meaningful between two full-tank fills.
     select * into prev from public.fuel_logs
-      where bike_id = new.bike_id and id <> new.id and odometer_km < new.odometer_km
+      where bike_id = new.bike_id and id <> new.id and full_tank = true and odometer_km < new.odometer_km
       order by odometer_km desc limit 1;
     if prev is not null then
       new.mileage := round((new.odometer_km - prev.odometer_km) / nullif(new.litres, 0), 2);
     end if;
   end if;
-  update public.bikes set odometer_km = new.odometer_km,
-    avg_mileage = coalesce(new.mileage, avg_mileage)
-    where id = new.bike_id and odometer_km < new.odometer_km;
+  -- Always keep the bike's odometer at the highest known reading and
+  -- surface the latest mileage, regardless of the order logs are
+  -- inserted in or a manually-entered starting odometer.
+  update public.bikes
+    set odometer_km = greatest(coalesce(odometer_km, 0), new.odometer_km),
+        avg_mileage = coalesce(new.mileage, avg_mileage)
+    where id = new.bike_id;
   return new;
 end;
 $$ language plpgsql security definer;

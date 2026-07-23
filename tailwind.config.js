@@ -33,6 +33,8 @@ export default {
           pink: '#FCE1E6',
           green: '#DCFCE7',
           yellow: '#FDECC8',
+          orange: '#FBE3D0',
+          teal: '#D7F5F0',
         },
       },
       borderRadius: {
