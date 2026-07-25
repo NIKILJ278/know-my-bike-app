@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import Sheet from '../Sheet.jsx'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuth } from '../../context/AuthContext'
+import { pickPhoto } from '../../lib/pickPhoto'
 
 export default function AddBikeModal({ onClose, onSave }) {
   const { user } = useAuth()
@@ -12,13 +13,16 @@ export default function AddBikeModal({ onClose, onSave }) {
   const [preview, setPreview] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const inputRef = useRef(null)
 
-  const pickFile = (e) => {
-    const f = e.target.files?.[0]
-    if (!f) return
-    setFile(f)
-    setPreview(URL.createObjectURL(f))
+  const choosePhoto = async () => {
+    setError('')
+    try {
+      const f = await pickPhoto()
+      setFile(f)
+      setPreview(URL.createObjectURL(f))
+    } catch {
+      // user cancelled the picker — nothing to do
+    }
   }
 
   const submit = async (e) => {
@@ -52,14 +56,13 @@ export default function AddBikeModal({ onClose, onSave }) {
     <Sheet title="Add a bike" subtitle="Add another ride to your garage" onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-4">
         <div>
-          <input ref={inputRef} type="file" accept="image/*" capture="environment" onChange={pickFile} className="hidden" />
           {preview ? (
-            <button type="button" onClick={() => inputRef.current?.click()} className="relative w-full rounded-2xl overflow-hidden border border-black/10 dark:border-white/15">
+            <button type="button" onClick={choosePhoto} className="relative w-full rounded-2xl overflow-hidden border border-black/10 dark:border-white/15">
               <img src={preview} alt="Bike preview" className="w-full h-40 object-cover" />
               <span className="absolute bottom-2 right-2 bg-black/70 text-white text-xs font-semibold px-2.5 py-1 rounded-full">Change photo</span>
             </button>
           ) : (
-            <button type="button" onClick={() => inputRef.current?.click()}
+            <button type="button" onClick={choosePhoto}
               className="tap w-full rounded-2xl border-2 border-dashed border-black/15 dark:border-white/20 py-6 flex flex-col items-center gap-2 text-ink/60 dark:text-white/60">
               <CameraIcon />
               <span className="text-sm font-semibold">Add a photo of your bike</span>

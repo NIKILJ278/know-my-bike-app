@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useBikes } from '../context/BikeContext'
+import { pickPhoto } from '../lib/pickPhoto'
 
 // Deterministic accent pair per bike, so different bikes in a garage don't
 // all look identical when there's no uploaded photo yet.
@@ -23,11 +24,14 @@ export default function BikeHeroCard({ bike }) {
   const { user } = useAuth()
   const { updateBike } = useBikes()
   const [uploading, setUploading] = useState(false)
-  const inputRef = useRef(null)
 
-  const pickFile = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const choosePhoto = async () => {
+    let file
+    try {
+      file = await pickPhoto()
+    } catch {
+      return // user cancelled
+    }
     setUploading(true)
     try {
       const ext = file.name.split('.').pop() || 'jpg'
@@ -50,11 +54,10 @@ export default function BikeHeroCard({ bike }) {
         className="relative rounded-2xl overflow-hidden h-64 mb-6 flex flex-col justify-end p-5 text-white bg-cover bg-center"
         style={{ backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.05)), url(${bike.photo_url})` }}
       >
-        <input ref={inputRef} type="file" accept="image/*" onChange={pickFile} className="hidden" />
         {bike.make && (
           <span className="absolute top-4 left-4 bg-white/90 text-ink text-xs font-semibold px-3 py-1 rounded-full">{bike.make.split(' ')[0]}</span>
         )}
-        <button onClick={() => inputRef.current?.click()} className="tap absolute top-4 right-4 bg-black/50 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
+        <button onClick={choosePhoto} className="tap absolute top-4 right-4 bg-black/50 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
           {uploading ? 'Uploading…' : 'Change photo'}
         </button>
         <CardBody bike={bike} light />
@@ -68,12 +71,11 @@ export default function BikeHeroCard({ bike }) {
       className="relative rounded-2xl overflow-hidden h-64 mb-6 flex flex-col justify-end p-5 text-white"
       style={{ background: `linear-gradient(155deg, ${base} 0%, #0B0E14 78%)` }}
     >
-      <input ref={inputRef} type="file" accept="image/*" capture="environment" onChange={pickFile} className="hidden" />
       <RouteMotif accent={accent} />
       {bike.make && (
         <span className="absolute top-4 left-4 bg-white/12 backdrop-blur text-white text-xs font-semibold px-3 py-1 rounded-full border border-white/20">{bike.make.split(' ')[0]}</span>
       )}
-      <button onClick={() => inputRef.current?.click()} className="tap absolute top-4 right-4 bg-white/12 backdrop-blur text-white text-xs font-semibold px-3 py-1.5 rounded-full border border-white/20 flex items-center gap-1.5">
+      <button onClick={choosePhoto} className="tap absolute top-4 right-4 bg-white/12 backdrop-blur text-white text-xs font-semibold px-3 py-1.5 rounded-full border border-white/20 flex items-center gap-1.5">
         <CameraIcon /> {uploading ? 'Uploading…' : 'Add photo'}
       </button>
       <CardBody bike={bike} light accent={accent} />

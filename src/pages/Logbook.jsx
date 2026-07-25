@@ -94,6 +94,7 @@ export default function Logbook() {
         <ListOrEmpty
           rows={filteredExpenses}
           empty="No expenses logged yet."
+          extraBottomPad={selectMode && selected.size > 0}
           render={(r, i, arr) => (
             <Row key={r.id} last={i === arr.length - 1} icon={visualFor(r.category)}
               title={r.note || r.category} subtitle={`${formatDate(r.logged_at)} · ${r.category}`} amount={r.amount}
@@ -106,6 +107,7 @@ export default function Logbook() {
         <ListOrEmpty
           rows={fuel.rows}
           empty="No fuel fills logged yet."
+          extraBottomPad={selectMode && selected.size > 0}
           render={(r, i, arr) => (
             <Row key={r.id} last={i === arr.length - 1} icon={visualFor('Fuel')}
               title={`${r.litres}L · ${r.full_tank ? 'Full Tank' : 'Partial'}`}
@@ -121,6 +123,7 @@ export default function Logbook() {
           rows={trips.rows}
           empty="No logs yet."
           emptyAction={() => setShowModal(true)}
+          extraBottomPad={selectMode && selected.size > 0}
           render={(r, i, arr) => (
             <Row key={r.id} last={i === arr.length - 1} icon={visualFor('Trip')}
               title={r.title}
@@ -134,7 +137,10 @@ export default function Logbook() {
       {!selectMode && <Fab onClick={() => setShowModal(true)} />}
 
       {selectMode && selected.size > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 flex justify-center px-6 pb-6">
+        <div
+          className="fixed left-0 right-0 z-30 flex justify-center px-6"
+          style={{ bottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
+        >
           <div className="w-full max-w-lg bg-ink dark:bg-white text-white dark:text-ink rounded-2xl px-5 py-4 flex items-center justify-between shadow-fab">
             <span className="font-semibold">{selected.size} selected</span>
             <button onClick={() => setConfirmOpen(true)} className="tap flex items-center gap-1.5 bg-red-500 text-white font-semibold text-sm px-4 py-2 rounded-full">
@@ -167,7 +173,7 @@ export default function Logbook() {
   )
 }
 
-function ListOrEmpty({ rows, empty, render, emptyAction }) {
+function ListOrEmpty({ rows, empty, render, emptyAction, extraBottomPad }) {
   if (rows.length === 0) {
     return (
       <div className="flex flex-col items-center text-center py-16">
@@ -178,7 +184,7 @@ function ListOrEmpty({ rows, empty, render, emptyAction }) {
       </div>
     )
   }
-  return <div className="flex flex-col pb-24">{rows.map(render)}</div>
+  return <div className={`flex flex-col ${extraBottomPad ? 'pb-44' : 'pb-24'}`}>{rows.map(render)}</div>
 }
 
 function Row({ icon, title, subtitle, amount, last, selectMode, selected, onToggle }) {
