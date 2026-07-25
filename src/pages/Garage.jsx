@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useBikes } from '../context/BikeContext'
 import { useTable } from '../hooks/useTable'
 import ThemeToggle from '../components/ThemeToggle.jsx'
+import BikeHeroCard from '../components/BikeHeroCard.jsx'
 import LogFuelModal from '../components/modals/LogFuelModal.jsx'
 import LogExpenseModal from '../components/modals/LogExpenseModal.jsx'
 import LogTripModal from '../components/modals/LogTripModal.jsx'
@@ -112,25 +113,7 @@ export default function Garage() {
         </button>
       </div>
 
-      <div
-        className="relative rounded-2xl overflow-hidden h-64 mb-6 flex flex-col justify-end p-5 text-white bg-cover bg-center"
-        style={{ backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.1)), url(${activeBike.photo_url || 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?q=80&w=1200'})` }}
-      >
-        {activeBike.make && (
-          <span className="absolute top-4 left-4 bg-white/90 text-ink text-xs font-semibold px-3 py-1 rounded-full">{activeBike.make.split(' ')[0]}</span>
-        )}
-        <h2 className="text-2xl font-display font-extrabold">{activeBike.name}</h2>
-        <div className="flex gap-6 mt-2">
-          <div>
-            <p className="text-[10px] tracking-wide text-white/70 font-semibold">ODOMETER</p>
-            <p className="font-bold">{Number(activeBike.odometer_km || 0).toLocaleString('en-IN')} km</p>
-          </div>
-          <div>
-            <p className="text-[10px] tracking-wide text-white/70 font-semibold">AVG MILEAGE</p>
-            <p className="font-bold">{activeBike.avg_mileage ? `${activeBike.avg_mileage} km/l` : '—'}</p>
-          </div>
-        </div>
-      </div>
+      <BikeHeroCard bike={activeBike} />
 
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div className="card p-4">
