@@ -3,10 +3,10 @@ import Sheet from '../Sheet.jsx'
 
 export const EXPENSE_CATEGORIES = ['Service', 'Repair', 'Insurance', 'Accessories', 'Other']
 
-export default function LogExpenseModal({ bikeName, onClose, onSave }) {
-  const [category, setCategory] = useState('Service')
-  const [amount, setAmount] = useState('')
-  const [note, setNote] = useState('')
+export default function LogExpenseModal({ bikeName, onClose, onSave, initial }) {
+  const [category, setCategory] = useState(initial?.category || 'Service')
+  const [amount, setAmount] = useState(initial?.amount != null ? String(initial.amount) : '')
+  const [note, setNote] = useState(initial?.note || '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -14,7 +14,8 @@ export default function LogExpenseModal({ bikeName, onClose, onSave }) {
     e.preventDefault()
     setError(''); setBusy(true)
     const { error } = await onSave({
-      category, amount: Number(amount), note, logged_at: new Date().toISOString(),
+      category, amount: Number(amount), note,
+      ...(initial ? {} : { logged_at: new Date().toISOString() }),
     })
     setBusy(false)
     if (error) return setError(error.message)
@@ -22,7 +23,7 @@ export default function LogExpenseModal({ bikeName, onClose, onSave }) {
   }
 
   return (
-    <Sheet title="Log Expense" subtitle={`For ${bikeName}`} onClose={onClose}>
+    <Sheet title={initial ? "Edit Expense" : "Log Expense"} subtitle={`For ${bikeName}`} onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-6">
         <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-1">
           {EXPENSE_CATEGORIES.map((c) => (
@@ -44,7 +45,7 @@ export default function LogExpenseModal({ bikeName, onClose, onSave }) {
         </div>
 
         {error && <p className="text-sm text-red-500">{error}</p>}
-        <button className="btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save Expense'}</button>
+        <button className="btn-primary" disabled={busy}>{busy ? 'Saving…' : initial ? 'Save Changes' : 'Save Expense'}</button>
       </form>
     </Sheet>
   )

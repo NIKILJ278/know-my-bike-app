@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import Sheet from '../Sheet.jsx'
 
-export default function LogFuelModal({ bikeName, onClose, onSave }) {
-  const [litres, setLitres] = useState('')
-  const [amount, setAmount] = useState('')
-  const [odometer, setOdometer] = useState('')
-  const [fullTank, setFullTank] = useState(true)
+export default function LogFuelModal({ bikeName, onClose, onSave, initial }) {
+  const [litres, setLitres] = useState(initial?.litres != null ? String(initial.litres) : '')
+  const [amount, setAmount] = useState(initial?.amount != null ? String(initial.amount) : '')
+  const [odometer, setOdometer] = useState(initial?.odometer_km != null ? String(initial.odometer_km) : '')
+  const [fullTank, setFullTank] = useState(initial ? !!initial.full_tank : true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -17,7 +17,7 @@ export default function LogFuelModal({ bikeName, onClose, onSave }) {
       amount: Number(amount),
       odometer_km: Number(odometer),
       full_tank: fullTank,
-      logged_at: new Date().toISOString(),
+      ...(initial ? {} : { logged_at: new Date().toISOString() }),
     })
     setBusy(false)
     if (error) return setError(error.message)
@@ -25,7 +25,7 @@ export default function LogFuelModal({ bikeName, onClose, onSave }) {
   }
 
   return (
-    <Sheet title="Log Fuel" subtitle={`For ${bikeName}`} onClose={onClose}>
+    <Sheet title={initial ? "Edit Fuel Fill" : "Log Fuel"} subtitle={`For ${bikeName}`} onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-6">
         <Field label="Litres *">
           <input className="input" type="number" step="0.01" inputMode="decimal" placeholder="8.0" value={litres} onChange={(e) => setLitres(e.target.value)} required />
@@ -46,7 +46,7 @@ export default function LogFuelModal({ bikeName, onClose, onSave }) {
         </div>
 
         {error && <p className="text-sm text-red-500">{error}</p>}
-        <button className="btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save Fill'}</button>
+        <button className="btn-primary" disabled={busy}>{busy ? 'Saving…' : initial ? 'Save Changes' : 'Save Fill'}</button>
       </form>
     </Sheet>
   )

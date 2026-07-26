@@ -6,6 +6,7 @@ import { ThemeProvider } from './context/ThemeContext.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 import { BikeProvider } from './context/BikeContext.jsx'
 import './styles/index.css'
+import 'leaflet/dist/leaflet.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

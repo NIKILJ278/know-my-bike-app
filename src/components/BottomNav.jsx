@@ -4,6 +4,7 @@ const items = [
   { to: '/', label: 'Garage', icon: GarageIcon, end: true },
   { to: '/logbook', label: 'Logbook', icon: LogbookIcon },
   { to: '/vault', label: 'Vault', icon: VaultIcon },
+  { to: '/rides', label: 'Ride', icon: RideIcon },
   { to: '/ask-ai', label: 'Ask AI', icon: AiIcon },
   { to: '/profile', label: 'Profile', icon: ProfileIcon },
 ]
@@ -19,13 +20,13 @@ export default function BottomNav() {
               to={to}
               end={end}
               className={({ isActive }) =>
-                `flex-1 flex flex-col items-center gap-1 py-1.5 tap ${
+                `flex-1 flex flex-col items-center gap-1 py-1.5 tap min-w-0 ${
                   isActive ? 'text-amber' : 'text-ink/40 dark:text-white/40'
                 }`
               }
             >
               <Icon />
-              <span className="text-[11px] font-semibold">{label}</span>
+              <span className="text-[10px] font-semibold truncate max-w-full">{label}</span>
             </NavLink>
           ))}
         </div>
@@ -52,6 +53,13 @@ function VaultIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  )
+}
+function RideIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="5" cy="17" r="3" /><circle cx="19" cy="17" r="3" /><path d="M5 17 9 8h4l3 5h4M9 8 7 5H4" />
     </svg>
   )
 }
