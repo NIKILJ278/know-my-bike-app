@@ -18,6 +18,10 @@ export default function Profile() {
   const [signingOut, setSigningOut] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
+  const [editingPhone, setEditingPhone] = useState(false)
+  const [phoneDraft, setPhoneDraft] = useState('')
+  const [savingPhone, setSavingPhone] = useState(false)
+  const [codeCopied, setCodeCopied] = useState(false)
 
   const handleDeleteBike = async (id) => {
     setDeletingId(id)
@@ -45,6 +49,22 @@ export default function Profile() {
     setEditingName(false)
   }
 
+  const startEditPhone = () => { setPhoneDraft(profile?.phone || ''); setEditingPhone(true) }
+  const savePhone = async () => {
+    setSavingPhone(true)
+    await updateProfile({ phone: phoneDraft.trim() || null })
+    setSavingPhone(false)
+    setEditingPhone(false)
+  }
+  const copyInviteCode = async () => {
+    if (!profile?.invite_code) return
+    try {
+      await navigator.clipboard.writeText(profile.invite_code)
+      setCodeCopied(true)
+      setTimeout(() => setCodeCopied(false), 1500)
+    } catch { /* clipboard unavailable — code is still visible to copy manually */ }
+  }
+
   const stats = useMemo(() => {
     const now = new Date()
     const inMonth = (d) => {
@@ -68,6 +88,8 @@ export default function Profile() {
     const avgMileage = mileageReadings.length
       ? Math.round((mileageReadings.reduce((s, m) => s + m, 0) / mileageReadings.length) * 10) / 10
       : null
+
+    const costPerKm = combinedOdometer > 0 ? Math.round((lifetimeSpend / combinedOdometer) * 100) / 100 : null
 
     const categoryTotals = { Fuel: fuelSpend, Service: 0, Repair: 0, Insurance: 0, Accessories: 0, Other: 0 }
     expenses.forEach((e) => { categoryTotals[e.category] = (categoryTotals[e.category] || 0) + Number(e.amount || 0) })
@@ -95,7 +117,7 @@ export default function Profile() {
 
     return {
       fuelSpend, fuelLitres, expenseSpend, lifetimeSpend, monthSpend, monthFuel,
-      totalDistance, combinedOdometer, avgMileage, categoryBreakdown,
+      totalDistance, combinedOdometer, avgMileage, costPerKm, categoryBreakdown,
       docsValid, docsExpiringSoon, docsExpired, pendingReminders,
       totalTrips: trips.length, totalFuelFills: fuel.length,
       totalExpenses: expenses.length, totalDocuments: documents.length,
@@ -165,12 +187,52 @@ export default function Profile() {
         </div>
       </div>
 
+      {/* Ride invite identity */}
+      <div className="card p-5 mb-4">
+        <p className="font-display font-bold mb-3">Ride invite</p>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div>
+            <p className="text-xs text-ink/50 dark:text-white/50">Your invite code</p>
+            <p className="font-display font-extrabold text-xl tracking-wide">{profile?.invite_code || '—'}</p>
+          </div>
+          <button onClick={copyInviteCode} className="tap text-sm font-semibold bg-surface-muted dark:bg-surface-darkmuted px-4 py-2 rounded-full shrink-0">
+            {codeCopied ? 'Copied!' : 'Copy'}
+          </button>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-ink/50 dark:text-white/50">Phone number</p>
+            {editingPhone ? (
+              <input
+                className="input py-2 text-base font-semibold mt-1"
+                value={phoneDraft}
+                onChange={(e) => setPhoneDraft(e.target.value)}
+                placeholder="+91 98765 43210"
+                inputMode="tel"
+                autoFocus
+              />
+            ) : (
+              <p className="font-semibold truncate">{profile?.phone || 'Not added yet'}</p>
+            )}
+          </div>
+          {editingPhone ? (
+            <button onClick={savePhone} disabled={savingPhone} className="tap text-sm font-semibold text-amber-dark dark:text-amber shrink-0">
+              {savingPhone ? '…' : 'Save'}
+            </button>
+          ) : (
+            <button onClick={startEditPhone} className="tap text-sm font-semibold text-amber-dark dark:text-amber shrink-0">Edit</button>
+          )}
+        </div>
+        <p className="text-xs text-ink/40 dark:text-white/40 mt-3">Share either of these so a rider can add you to a Ride.</p>
+      </div>
+
       {/* Quick stat tiles */}
       <div className="grid grid-cols-2 gap-3 mb-4">
         <StatTile label="BIKES OWNED" value={bikes.length} icon={<BikeIcon />} />
         <StatTile label="DISTANCE LOGGED" value={`${stats.totalDistance.toLocaleString('en-IN')} km`} icon={<RoadIcon />} />
         <StatTile label="LIFETIME SPEND" value={formatINR(stats.lifetimeSpend)} icon={<WalletIcon />} dark />
         <StatTile label="AVG MILEAGE" value={stats.avgMileage ? `${stats.avgMileage} km/l` : '—'} icon={<GaugeIcon />} />
+        <StatTile label="COST PER KM" value={stats.costPerKm ? `${formatINR(stats.costPerKm)}/km` : '—'} icon={<WalletIcon />} />
       </div>
 
       {/* Spend snapshot */}

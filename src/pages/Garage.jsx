@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useBikes } from '../context/BikeContext'
 import { useTable } from '../hooks/useTable'
 import ThemeToggle from '../components/ThemeToggle.jsx'
+import Sheet from '../components/Sheet.jsx'
 import BikeHeroCard from '../components/BikeHeroCard.jsx'
 import LogFuelModal from '../components/modals/LogFuelModal.jsx'
 import LogExpenseModal from '../components/modals/LogExpenseModal.jsx'
@@ -16,8 +17,10 @@ import { BarTrend, LineTrend, DonutBreakdown } from '../components/charts/TrendC
 
 export default function Garage() {
   const { profile, user } = useAuth()
-  const { bikes, activeBike, setActiveBikeId, addBike } = useBikes()
+  const { bikes, activeBike, setActiveBikeId, addBike, updateBike } = useBikes()
   const [modal, setModal] = useState(null)
+  const budget = activeBike?.monthly_budget ?? null
+  const [budgetInput, setBudgetInput] = useState('')
 
   const fuel = useTable('fuel_logs', activeBike?.id)
   const expenses = useTable('expenses', activeBike?.id)
@@ -116,11 +119,28 @@ export default function Garage() {
       <BikeHeroCard bike={activeBike} />
 
       <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="card p-4">
+        <button
+          onClick={() => { setBudgetInput(budget ? String(budget) : ''); setModal('budget') }}
+          className="card p-4 text-left tap"
+        >
           <p className="text-xs font-semibold text-ink/50 dark:text-white/50 tracking-wide">SPEND · THIS MONTH</p>
           <p className="text-2xl font-display font-extrabold mt-1">{formatINR(monthSpend)}</p>
-          <p className="text-sm text-ink/50 dark:text-white/50 mt-1">Fuel {formatINR(monthFuel)}</p>
-        </div>
+          {budget ? (
+            <>
+              <div className="h-1.5 rounded-full bg-black/10 dark:bg-white/10 mt-2.5 overflow-hidden">
+                <div
+                  className={`h-full transition-all ${monthSpend > budget ? 'bg-red-500' : 'bg-amber'}`}
+                  style={{ width: `${Math.min(100, Math.round((monthSpend / budget) * 100))}%` }}
+                />
+              </div>
+              <p className={`text-xs mt-1.5 ${monthSpend > budget ? 'text-red-500 font-semibold' : 'text-ink/50 dark:text-white/50'}`}>
+                {monthSpend > budget ? 'Over budget · ' : ''}{formatINR(budget)} budget
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-ink/50 dark:text-white/50 mt-1">Fuel {formatINR(monthFuel)} · tap to set a budget</p>
+          )}
+        </button>
         <div className="rounded-2xl bg-ink dark:bg-surface-darkmuted p-4 text-white">
           <p className="text-xs font-semibold text-amber tracking-wide">LIFETIME SPEND</p>
           <p className="text-2xl font-display font-extrabold mt-1">{formatINR(lifetimeSpend)}</p>
@@ -214,6 +234,26 @@ export default function Garage() {
       )}
       {modal === 'addBike' && (
         <AddBikeModal onClose={closeModal} onSave={(row) => addBike(row)} />
+      )}
+      {modal === 'budget' && (
+        <Sheet title="Monthly budget" subtitle={`For ${activeBike.name}`} onClose={closeModal}>
+          <form
+            onSubmit={(e) => { e.preventDefault(); updateBike(activeBike.id, { monthly_budget: Number(budgetInput) || null }); closeModal() }}
+            className="flex flex-col gap-4"
+          >
+            <input
+              className="input" type="number" inputMode="numeric" placeholder="e.g. 3000"
+              value={budgetInput} onChange={(e) => setBudgetInput(e.target.value)} autoFocus
+            />
+            <p className="text-xs text-ink/40 dark:text-white/40 -mt-2">We'll show a progress bar on the dashboard and warn you when you go over.</p>
+            <button className="btn-primary">Save Budget</button>
+            {budget != null && (
+              <button type="button" onClick={() => { updateBike(activeBike.id, { monthly_budget: null }); closeModal() }} className="text-sm text-red-500 font-semibold">
+                Remove budget
+              </button>
+            )}
+          </form>
+        </Sheet>
       )}
     </div>
   )

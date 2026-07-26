@@ -8,6 +8,7 @@ import LogExpenseModal, { EXPENSE_CATEGORIES } from '../components/modals/LogExp
 import LogTripModal from '../components/modals/LogTripModal.jsx'
 import { formatINR, formatDate } from '../lib/format'
 import { visualFor } from '../lib/categoryVisual'
+import { exportToCSV } from '../lib/exportCSV'
 
 const TABS = ['Expenses', 'Fuel', 'Trips']
 
@@ -15,7 +16,9 @@ export default function Logbook() {
   const { activeBike } = useBikes()
   const [tab, setTab] = useState('Expenses')
   const [filter, setFilter] = useState('All')
+  const [query, setQuery] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [editingRow, setEditingRow] = useState(null)
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState(() => new Set())
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -27,16 +30,29 @@ export default function Logbook() {
 
   const tableForTab = { Expenses: expenses, Fuel: fuel, Trips: trips }[tab]
 
-  const filteredExpenses = useMemo(
-    () => (filter === 'All' ? expenses.rows : expenses.rows.filter((e) => e.category === filter)),
-    [expenses.rows, filter]
-  )
+  const q = query.trim().toLowerCase()
 
-  const rowsForTab = { Expenses: filteredExpenses, Fuel: fuel.rows, Trips: trips.rows }[tab]
+  const filteredExpenses = useMemo(() => {
+    let rows = filter === 'All' ? expenses.rows : expenses.rows.filter((e) => e.category === filter)
+    if (q) rows = rows.filter((r) => `${r.note || ''} ${r.category}`.toLowerCase().includes(q))
+    return rows
+  }, [expenses.rows, filter, q])
+
+  const filteredFuel = useMemo(() => {
+    if (!q) return fuel.rows
+    return fuel.rows.filter((r) => `${r.litres}L ${r.full_tank ? 'full tank' : 'partial'}`.toLowerCase().includes(q))
+  }, [fuel.rows, q])
+
+  const filteredTrips = useMemo(() => {
+    if (!q) return trips.rows
+    return trips.rows.filter((r) => `${r.title || ''} ${r.end_place || ''}`.toLowerCase().includes(q))
+  }, [trips.rows, q])
+
+  const rowsForTab = { Expenses: filteredExpenses, Fuel: filteredFuel, Trips: filteredTrips }[tab]
 
   if (!activeBike) return null
 
-  const switchTab = (t) => { setTab(t); exitSelectMode() }
+  const switchTab = (t) => { setTab(t); exitSelectMode(); setQuery('') }
   const exitSelectMode = () => { setSelectMode(false); setSelected(new Set()) }
   const toggleSelected = (id) => {
     setSelected((prev) => {
@@ -54,6 +70,15 @@ export default function Logbook() {
     exitSelectMode()
   }
 
+  const handleRowTap = (row) => {
+    if (selectMode) return toggleSelected(row.id)
+    setEditingRow(row)
+  }
+
+  const exportCurrentTab = () => {
+    exportToCSV(`${activeBike.name}-${tab.toLowerCase()}.csv`, rowsForTab)
+  }
+
   return (
     <div className="px-6 pt-14 pb-4">
       <div className="flex items-start justify-between mb-6">
@@ -61,14 +86,21 @@ export default function Logbook() {
           <h1 className="text-2xl font-display font-extrabold">Logbook</h1>
           <p className="text-ink/50 dark:text-white/50">{activeBike.name}</p>
         </div>
-        {rowsForTab.length > 0 && (
-          <button
-            onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
-            className="text-sm font-semibold text-amber-dark dark:text-amber pt-1"
-          >
-            {selectMode ? 'Cancel' : 'Select'}
-          </button>
-        )}
+        <div className="flex items-center gap-4 pt-1">
+          {rowsForTab.length > 0 && !selectMode && (
+            <button onClick={exportCurrentTab} aria-label="Export CSV" className="text-ink/50 dark:text-white/50">
+              <ExportIcon />
+            </button>
+          )}
+          {tableForTab.rows.length > 0 && (
+            <button
+              onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+              className="text-sm font-semibold text-amber-dark dark:text-amber"
+            >
+              {selectMode ? 'Cancel' : 'Select'}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex bg-surface-muted dark:bg-surface-darkmuted rounded-full p-1 mb-4">
@@ -78,6 +110,18 @@ export default function Logbook() {
           </button>
         ))}
       </div>
+
+      {tableForTab.rows.length > 3 && (
+        <div className="relative mb-4">
+          <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink/30 dark:text-white/30" />
+          <input
+            className="input pl-10"
+            placeholder={`Search ${tab.toLowerCase()}…`}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+      )}
 
       {tab === 'Expenses' && (
         <div className="flex gap-2 overflow-x-auto -mx-1 px-1 mb-4">
@@ -93,35 +137,35 @@ export default function Logbook() {
       {tab === 'Expenses' && (
         <ListOrEmpty
           rows={filteredExpenses}
-          empty="No expenses logged yet."
+          empty={q ? 'No expenses match your search.' : 'No expenses logged yet.'}
           extraBottomPad={selectMode && selected.size > 0}
           render={(r, i, arr) => (
             <Row key={r.id} last={i === arr.length - 1} icon={visualFor(r.category)}
               title={r.note || r.category} subtitle={`${formatDate(r.logged_at)} · ${r.category}`} amount={r.amount}
-              selectMode={selectMode} selected={selected.has(r.id)} onToggle={() => toggleSelected(r.id)} />
+              selectMode={selectMode} selected={selected.has(r.id)} onTap={() => handleRowTap(r)} />
           )}
         />
       )}
 
       {tab === 'Fuel' && (
         <ListOrEmpty
-          rows={fuel.rows}
-          empty="No fuel fills logged yet."
+          rows={filteredFuel}
+          empty={q ? 'No fuel fills match your search.' : 'No fuel fills logged yet.'}
           extraBottomPad={selectMode && selected.size > 0}
           render={(r, i, arr) => (
             <Row key={r.id} last={i === arr.length - 1} icon={visualFor('Fuel')}
               title={`${r.litres}L · ${r.full_tank ? 'Full Tank' : 'Partial'}`}
               subtitle={`${formatDate(r.logged_at)} · ${Number(r.odometer_km).toLocaleString('en-IN')} km${r.mileage ? ` · ${r.mileage} km/l` : ''}`}
               amount={r.amount}
-              selectMode={selectMode} selected={selected.has(r.id)} onToggle={() => toggleSelected(r.id)} />
+              selectMode={selectMode} selected={selected.has(r.id)} onTap={() => handleRowTap(r)} />
           )}
         />
       )}
 
       {tab === 'Trips' && (
         <ListOrEmpty
-          rows={trips.rows}
-          empty="No logs yet."
+          rows={filteredTrips}
+          empty={q ? 'No trips match your search.' : 'No logs yet.'}
           emptyAction={() => setShowModal(true)}
           extraBottomPad={selectMode && selected.size > 0}
           render={(r, i, arr) => (
@@ -129,7 +173,7 @@ export default function Logbook() {
               title={r.title}
               subtitle={`${formatDate(r.logged_at)} · ${r.distance_km} km${r.duration_min ? ` · ${r.duration_min} min` : ''}`}
               amount={null}
-              selectMode={selectMode} selected={selected.has(r.id)} onToggle={() => toggleSelected(r.id)} />
+              selectMode={selectMode} selected={selected.has(r.id)} onTap={() => handleRowTap(r)} />
           )}
         />
       )}
@@ -169,6 +213,16 @@ export default function Logbook() {
       {showModal && tab === 'Trips' && (
         <LogTripModal bikeName={activeBike.name} startOdometer={activeBike.odometer_km} onClose={() => setShowModal(false)} onSave={(row) => trips.add(row)} />
       )}
+
+      {editingRow && tab === 'Expenses' && (
+        <LogExpenseModal bikeName={activeBike.name} initial={editingRow} onClose={() => setEditingRow(null)} onSave={(patch) => expenses.update(editingRow.id, patch)} />
+      )}
+      {editingRow && tab === 'Fuel' && (
+        <LogFuelModal bikeName={activeBike.name} initial={editingRow} onClose={() => setEditingRow(null)} onSave={(patch) => fuel.update(editingRow.id, patch)} />
+      )}
+      {editingRow && tab === 'Trips' && (
+        <LogTripModal bikeName={activeBike.name} startOdometer={activeBike.odometer_km} initial={editingRow} onClose={() => setEditingRow(null)} onSave={(patch) => trips.update(editingRow.id, patch)} />
+      )}
     </div>
   )
 }
@@ -179,7 +233,7 @@ function ListOrEmpty({ rows, empty, render, emptyAction, extraBottomPad }) {
       <div className="flex flex-col items-center text-center py-16">
         <div className="w-20 h-20 rounded-full bg-surface-muted dark:bg-surface-darkmuted flex items-center justify-center text-3xl mb-4">🔍</div>
         <p className="font-bold text-lg mb-1">No logs yet</p>
-        <p className="text-ink/50 dark:text-white/50 mb-6">Tap the + button to record your first entry.</p>
+        <p className="text-ink/50 dark:text-white/50 mb-6">{empty}</p>
         {emptyAction && <button onClick={emptyAction} className="btn-dark w-auto px-6">Add Log</button>}
       </div>
     )
@@ -187,12 +241,12 @@ function ListOrEmpty({ rows, empty, render, emptyAction, extraBottomPad }) {
   return <div className={`flex flex-col ${extraBottomPad ? 'pb-44' : 'pb-24'}`}>{rows.map(render)}</div>
 }
 
-function Row({ icon, title, subtitle, amount, last, selectMode, selected, onToggle }) {
+function Row({ icon, title, subtitle, amount, last, selectMode, selected, onTap }) {
   return (
     <button
       type="button"
-      onClick={selectMode ? onToggle : undefined}
-      className={`w-full flex items-center gap-3 py-3.5 text-left ${last ? '' : 'border-b border-black/5 dark:border-white/10'} ${selectMode ? 'tap' : ''}`}
+      onClick={onTap}
+      className={`w-full flex items-center gap-3 py-3.5 text-left tap ${last ? '' : 'border-b border-black/5 dark:border-white/10'}`}
     >
       {selectMode && (
         <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${selected ? 'bg-amber border-amber' : 'border-black/20 dark:border-white/25'}`}>
@@ -221,6 +275,22 @@ function CheckIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#12141C" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
       <path d="M20 6 9 17l-5-5" />
+    </svg>
+  )
+}
+
+function SearchIcon({ className }) {
+  return (
+    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" />
+    </svg>
+  )
+}
+
+function ExportIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 15V3M8 7l4-4 4 4" /><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
     </svg>
   )
 }

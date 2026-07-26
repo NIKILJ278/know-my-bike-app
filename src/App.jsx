@@ -10,6 +10,9 @@ import Logbook from './pages/Logbook.jsx'
 import Vault from './pages/Vault.jsx'
 import AskAI from './pages/AskAI.jsx'
 import Profile from './pages/Profile.jsx'
+import Rides from './pages/Rides.jsx'
+import RideRoom from './pages/RideRoom.jsx'
+import GlobalRingOverlay from './components/GlobalRingOverlay.jsx'
 import Wordmark from './components/Wordmark.jsx'
 import { useBikes } from './context/BikeContext'
 
@@ -53,6 +56,7 @@ export default function App() {
         element={
           <RequireAuth>
             <RequireBike>
+              <GlobalRingOverlay />
               <Layout />
             </RequireBike>
           </RequireAuth>
@@ -61,6 +65,8 @@ export default function App() {
         <Route index element={<Garage />} />
         <Route path="logbook" element={<Logbook />} />
         <Route path="vault" element={<Vault />} />
+        <Route path="rides" element={<Rides />} />
+        <Route path="rides/:id" element={<RideRoom />} />
         <Route path="ask-ai" element={<AskAI />} />
         <Route path="profile" element={<Profile />} />
       </Route>
