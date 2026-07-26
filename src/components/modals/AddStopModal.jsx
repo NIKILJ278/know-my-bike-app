@@ -79,6 +79,7 @@ export default function AddStopModal({ onClose, onAdd, presetCoords }) {
         <RideMap
           stops={pin ? [{ ...pin, label: customLabel || 'Pin' }] : []}
           onMapClick={(lat, lng) => { setPin({ lat, lng }); setResults([]); setQuery('') }}
+          onLocate={(coords) => { setPin(coords); setCustomLabel((prev) => prev || 'My location') }}
           height={200}
         />
 

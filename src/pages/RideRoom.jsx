@@ -1,3 +1,4 @@
+import { Browser } from '@capacitor/browser'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -7,6 +8,7 @@ import RideMap from '../components/RideMap.jsx'
 import AddStopModal from '../components/modals/AddStopModal.jsx'
 import InviteMemberModal from '../components/modals/InviteMemberModal.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
+import { navigateToStops } from '../lib/location'
 
 const STATUS_LABEL = { invited: 'Invited', joined: 'Joined', declined: 'Declined' }
 
@@ -63,6 +65,12 @@ export default function RideRoom() {
     if (!hasJoined && !isHost) return
     setPendingPin({ lat, lng })
     setShowAddStop(true)
+  }
+
+  const handleNavigate = async () => {
+    const url = navigateToStops(stops)
+    if (!url) return
+    await Browser.open({ url })
   }
 
   const startRideIfNeeded = async () => {
@@ -131,7 +139,16 @@ export default function RideRoom() {
           <button onClick={() => { setPendingPin(null); setShowAddStop(true) }} className="text-sm font-semibold text-amber-dark dark:text-amber">+ Add stop</button>
         </div>
         <RideMap stops={stops} onMapClick={handleMapClick} />
-        <p className="text-xs text-ink/40 dark:text-white/40 mt-2">Tap the map to drop a pin, or search above. Free OpenStreetMap — no account needed.</p>
+        <p className="text-xs text-ink/40 dark:text-white/40 mt-2">Tap the map to drop a pin, search in Add Stop, or use the locate button to find yourself. Free OpenStreetMap — no account needed.</p>
+
+        {stops.length > 0 && (
+          <button
+            onClick={handleNavigate}
+            className="tap w-full mt-3 bg-ink dark:bg-white text-white dark:text-ink font-semibold rounded-2xl py-3 flex items-center justify-center gap-2"
+          >
+            <NavigateIcon /> Navigate {stops.length > 1 ? `through ${stops.length} stops` : 'to this stop'}
+          </button>
+        )}
 
         {stops.length > 0 && (
           <div className="flex flex-col mt-3">
@@ -231,6 +248,7 @@ function IncomingCallCard({ name, onAccept, onDecline }) {
 }
 
 function BackIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg> }
+function NavigateIcon() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 11 18-8-8 18-2-8-8-2z" /></svg> }
 function TrashIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16z" /></svg> }
 function MicIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0M12 19v3" /></svg> }
 function MicOffIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 1l22 22M9 9v3a3 3 0 0 0 4.6 2.5M15 5.5V5a3 3 0 0 0-5.8-1.1" /><path d="M5 10a7 7 0 0 0 10.6 6M12 19v3" /></svg> }
