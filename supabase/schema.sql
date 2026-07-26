@@ -13,10 +13,13 @@ create table if not exists public.profiles (
 
 alter table public.profiles enable row level security;
 
+drop policy if exists "Profiles are viewable by owner" on public.profiles;
 create policy "Profiles are viewable by owner" on public.profiles
   for select using (auth.uid() = id);
+drop policy if exists "Profiles are editable by owner" on public.profiles;
 create policy "Profiles are editable by owner" on public.profiles
   for update using (auth.uid() = id);
+drop policy if exists "Profiles are insertable by owner" on public.profiles;
 create policy "Profiles are insertable by owner" on public.profiles
   for insert with check (auth.uid() = id);
 
@@ -49,6 +52,7 @@ create table if not exists public.bikes (
 );
 
 alter table public.bikes enable row level security;
+drop policy if exists "Bikes are managed by owner" on public.bikes;
 create policy "Bikes are managed by owner" on public.bikes
   for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
 
@@ -66,6 +70,7 @@ create table if not exists public.fuel_logs (
 );
 
 alter table public.fuel_logs enable row level security;
+drop policy if exists "Fuel logs are managed by bike owner" on public.fuel_logs;
 create policy "Fuel logs are managed by bike owner" on public.fuel_logs
   for all using (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()))
   with check (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()));
@@ -113,6 +118,7 @@ create table if not exists public.expenses (
 );
 
 alter table public.expenses enable row level security;
+drop policy if exists "Expenses are managed by bike owner" on public.expenses;
 create policy "Expenses are managed by bike owner" on public.expenses
   for all using (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()))
   with check (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()));
@@ -131,6 +137,7 @@ create table if not exists public.trips (
 );
 
 alter table public.trips enable row level security;
+drop policy if exists "Trips are managed by bike owner" on public.trips;
 create policy "Trips are managed by bike owner" on public.trips
   for all using (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()))
   with check (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()));
@@ -147,6 +154,7 @@ create table if not exists public.documents (
 );
 
 alter table public.documents enable row level security;
+drop policy if exists "Documents are managed by bike owner" on public.documents;
 create policy "Documents are managed by bike owner" on public.documents
   for all using (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()))
   with check (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()));
@@ -163,6 +171,7 @@ create table if not exists public.reminders (
 );
 
 alter table public.reminders enable row level security;
+drop policy if exists "Reminders are managed by bike owner" on public.reminders;
 create policy "Reminders are managed by bike owner" on public.reminders
   for all using (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()))
   with check (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()));
@@ -349,36 +358,44 @@ alter table public.ride_stops enable row level security;
 -- member. The self-referencing subquery on ride_members is a standard,
 -- non-recursive Postgres RLS pattern (bounded by the user_id=auth.uid()
 -- branch), not literal recursion.
+drop policy if exists "Rides visible to host and members" on public.rides;
 create policy "Rides visible to host and members" on public.rides
   for select using (
     host_id = auth.uid()
     or id in (select ride_id from public.ride_members where user_id = auth.uid())
   );
+drop policy if exists "Rides manageable by host" on public.rides;
 create policy "Rides manageable by host" on public.rides
   for all using (host_id = auth.uid()) with check (host_id = auth.uid());
+drop policy if exists "Members can update their own ride's status transitions" on public.rides;
 create policy "Members can update their own ride's status transitions" on public.rides
   for update using (id in (select ride_id from public.ride_members where user_id = auth.uid()));
 
+drop policy if exists "Ride members can view membership for their rides" on public.ride_members;
 create policy "Ride members can view membership for their rides" on public.ride_members
   for select using (
     user_id = auth.uid()
     or ride_id in (select ride_id from public.ride_members where user_id = auth.uid())
     or ride_id in (select id from public.rides where host_id = auth.uid())
   );
+drop policy if exists "Host can add/manage members" on public.ride_members;
 create policy "Host can add/manage members" on public.ride_members
   for all using (
     ride_id in (select id from public.rides where host_id = auth.uid())
   ) with check (
     ride_id in (select id from public.rides where host_id = auth.uid())
   );
+drop policy if exists "Invited users can update their own membership (accept/decline)" on public.ride_members;
 create policy "Invited users can update their own membership (accept/decline)" on public.ride_members
   for update using (user_id = auth.uid()) with check (user_id = auth.uid());
 
+drop policy if exists "Ride stops visible to ride members" on public.ride_stops;
 create policy "Ride stops visible to ride members" on public.ride_stops
   for select using (
     ride_id in (select ride_id from public.ride_members where user_id = auth.uid())
     or ride_id in (select id from public.rides where host_id = auth.uid())
   );
+drop policy if exists "Ride members can add/manage stops" on public.ride_stops;
 create policy "Ride members can add/manage stops" on public.ride_stops
   for all using (
     ride_id in (select ride_id from public.ride_members where user_id = auth.uid() and status = 'joined')

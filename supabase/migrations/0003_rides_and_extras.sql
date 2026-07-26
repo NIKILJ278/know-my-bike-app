@@ -95,36 +95,44 @@ alter table public.ride_stops enable row level security;
 -- member. The self-referencing subquery on ride_members is a standard,
 -- non-recursive Postgres RLS pattern (bounded by the user_id=auth.uid()
 -- branch), not literal recursion.
+drop policy if exists "Rides visible to host and members" on public.rides;
 create policy "Rides visible to host and members" on public.rides
   for select using (
     host_id = auth.uid()
     or id in (select ride_id from public.ride_members where user_id = auth.uid())
   );
+drop policy if exists "Rides manageable by host" on public.rides;
 create policy "Rides manageable by host" on public.rides
   for all using (host_id = auth.uid()) with check (host_id = auth.uid());
+drop policy if exists "Members can update their own ride's status transitions" on public.rides;
 create policy "Members can update their own ride's status transitions" on public.rides
   for update using (id in (select ride_id from public.ride_members where user_id = auth.uid()));
 
+drop policy if exists "Ride members can view membership for their rides" on public.ride_members;
 create policy "Ride members can view membership for their rides" on public.ride_members
   for select using (
     user_id = auth.uid()
     or ride_id in (select ride_id from public.ride_members where user_id = auth.uid())
     or ride_id in (select id from public.rides where host_id = auth.uid())
   );
+drop policy if exists "Host can add/manage members" on public.ride_members;
 create policy "Host can add/manage members" on public.ride_members
   for all using (
     ride_id in (select id from public.rides where host_id = auth.uid())
   ) with check (
     ride_id in (select id from public.rides where host_id = auth.uid())
   );
+drop policy if exists "Invited users can update their own membership (accept/decline)" on public.ride_members;
 create policy "Invited users can update their own membership (accept/decline)" on public.ride_members
   for update using (user_id = auth.uid()) with check (user_id = auth.uid());
 
+drop policy if exists "Ride stops visible to ride members" on public.ride_stops;
 create policy "Ride stops visible to ride members" on public.ride_stops
   for select using (
     ride_id in (select ride_id from public.ride_members where user_id = auth.uid())
     or ride_id in (select id from public.rides where host_id = auth.uid())
   );
+drop policy if exists "Ride members can add/manage stops" on public.ride_stops;
 create policy "Ride members can add/manage stops" on public.ride_stops
   for all using (
     ride_id in (select ride_id from public.ride_members where user_id = auth.uid() and status = 'joined')
