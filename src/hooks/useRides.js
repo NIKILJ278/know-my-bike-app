@@ -39,7 +39,13 @@ export function useRides() {
     return { data: ride }
   }
 
-  return { rides, loading, error, startRide, refresh }
+  const deleteRide = async (id) => {
+    const { error } = await supabase.from('rides').delete().eq('id', id)
+    if (!error) setRides((prev) => prev.filter((r) => r.id !== id))
+    return { error }
+  }
+
+  return { rides, loading, error, startRide, deleteRide, refresh }
 }
 
 export function useRide(rideId) {
