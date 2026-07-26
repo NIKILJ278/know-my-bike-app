@@ -17,13 +17,16 @@ export default function Rides() {
   const [showModal, setShowModal] = useState(false)
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
+  const [formError, setFormError] = useState('')
 
   const submit = async (e) => {
     e.preventDefault()
     setBusy(true)
+    setFormError('')
     const { data, error } = await startRide(name.trim() || 'Group Ride')
     setBusy(false)
     if (!error && data) navigate(`/rides/${data.id}`)
+    else if (error) setFormError(error.message || 'Could not start the ride. Please try again.')
   }
 
   return (
@@ -64,9 +67,10 @@ export default function Rides() {
       <Fab onClick={() => setShowModal(true)} label="Start a ride" />
 
       {showModal && (
-        <Sheet title="Start a Ride" subtitle="Name it, then invite your crew" onClose={() => setShowModal(false)}>
+        <Sheet title="Start a Ride" subtitle="Name it, then invite your crew" onClose={() => { setShowModal(false); setFormError('') }}>
           <form onSubmit={submit} className="flex flex-col gap-4">
             <input className="input" placeholder="e.g. Weekend Nandi Hills run" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+            {formError && <p className="text-sm text-red-500 -mt-1">{formError}</p>}
             <button className="btn-primary" disabled={busy}>{busy ? 'Starting…' : 'Start Ride'}</button>
           </form>
         </Sheet>

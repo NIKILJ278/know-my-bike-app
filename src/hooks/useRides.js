@@ -1,19 +1,21 @@
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { supabase, freshChannel } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 
 export function useRides() {
   const { user } = useAuth()
   const [rides, setRides] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   const refresh = useCallback(async () => {
     if (!user) { setRides([]); setLoading(false); return }
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('rides')
       .select('*, ride_members(count)')
       .order('created_at', { ascending: false })
     setRides(data || [])
+    setError(error || null)
     setLoading(false)
   }, [user])
 
@@ -21,8 +23,7 @@ export function useRides() {
 
   useEffect(() => {
     if (!user) return
-    const channel = supabase
-      .channel('rides-list')
+    const channel = freshChannel('rides-list')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rides' }, () => refresh())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_members' }, () => refresh())
       .subscribe()
@@ -32,12 +33,13 @@ export function useRides() {
   const startRide = async (name) => {
     const { data: ride, error } = await supabase.from('rides').insert({ host_id: user.id, name }).select().single()
     if (error) return { error }
-    await supabase.from('ride_members').insert({ ride_id: ride.id, user_id: user.id, username: 'You', status: 'joined' })
+    const { error: memberError } = await supabase.from('ride_members').insert({ ride_id: ride.id, user_id: user.id, username: 'You', status: 'joined' })
+    if (memberError) return { error: memberError }
     refresh()
     return { data: ride }
   }
 
-  return { rides, loading, startRide, refresh }
+  return { rides, loading, error, startRide, refresh }
 }
 
 export function useRide(rideId) {
@@ -46,17 +48,23 @@ export function useRide(rideId) {
   const [members, setMembers] = useState([])
   const [stops, setStops] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   const refresh = useCallback(async () => {
     if (!rideId) return
-    const [{ data: rideData }, { data: memberData }, { data: stopData }] = await Promise.all([
-      supabase.from('rides').select('*').eq('id', rideId).single(),
+    const [
+      { data: rideData, error: rideError },
+      { data: memberData, error: memberError },
+      { data: stopData, error: stopError },
+    ] = await Promise.all([
+      supabase.from('rides').select('*').eq('id', rideId).maybeSingle(),
       supabase.from('ride_members').select('*').eq('ride_id', rideId).order('created_at'),
       supabase.from('ride_stops').select('*').eq('ride_id', rideId).order('order_index'),
     ])
     setRide(rideData || null)
     setMembers(memberData || [])
     setStops(stopData || [])
+    setError(rideError || memberError || stopError || null)
     setLoading(false)
   }, [rideId])
 
@@ -64,8 +72,7 @@ export function useRide(rideId) {
 
   useEffect(() => {
     if (!rideId) return
-    const channel = supabase
-      .channel(`ride-${rideId}`)
+    const channel = freshChannel(`ride-${rideId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_members', filter: `ride_id=eq.${rideId}` }, () => refresh())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_stops', filter: `ride_id=eq.${rideId}` }, () => refresh())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rides', filter: `id=eq.${rideId}` }, () => refresh())
@@ -109,5 +116,5 @@ export function useRide(rideId) {
 
   const myMembership = members.find((m) => m.user_id === user?.id)
 
-  return { ride, members, stops, myMembership, loading, refresh, inviteByPhoneOrCode, respondToInvite, addStop, removeStop, setStatus }
+  return { ride, members, stops, myMembership, loading, error, refresh, inviteByPhoneOrCode, respondToInvite, addStop, removeStop, setStatus }
 }

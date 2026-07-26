@@ -1,13 +1,16 @@
 -- ============================================================
--- Know My Bike — Bike Garage & Expense Tracker
--- Run this whole file once in Supabase SQL Editor (Dashboard > SQL Editor)
+-- Know My Bike — complete database schema
+-- Run this whole file once in Supabase SQL Editor (Dashboard > SQL Editor).
+-- Safe to re-run any time — every statement is idempotent.
 -- ============================================================
 
--- 1. PROFILES ---------------------------------------------------
+-- 1. PROFILES ---------------------------------------------------------------
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   username text,
   email text,
+  phone text,
+  invite_code text unique,
   created_at timestamptz default now()
 );
 
@@ -23,12 +26,27 @@ drop policy if exists "Profiles are insertable by owner" on public.profiles;
 create policy "Profiles are insertable by owner" on public.profiles
   for insert with check (auth.uid() = id);
 
--- Auto-create a profile row whenever a new auth user signs up
+create or replace function public.gen_invite_code()
+returns text as $$
+declare
+  chars text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  code text := '';
+  i int;
+begin
+  for i in 1..6 loop
+    code := code || substr(chars, floor(random() * length(chars) + 1)::int, 1);
+  end loop;
+  return code;
+end;
+$$ language plpgsql;
+
+-- Auto-create a profile row (with a fresh invite code) whenever a new
+-- auth user signs up.
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, username, email)
-  values (new.id, coalesce(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)), new.email)
+  insert into public.profiles (id, username, email, invite_code)
+  values (new.id, coalesce(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)), new.email, public.gen_invite_code())
   on conflict (id) do nothing;
   return new;
 end;
@@ -39,7 +57,22 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- 2. BIKES --------------------------------------------------------
+-- Backfill invite codes for any existing profiles that don't have one yet.
+update public.profiles set invite_code = public.gen_invite_code() where invite_code is null;
+
+-- Privacy-safe lookup used by the Ride invite flow: returns only
+-- id/username/invite_code for an exact phone or invite-code match,
+-- without opening up full profile SELECT access to everyone.
+create or replace function public.find_profile_for_invite(query text)
+returns table(id uuid, username text, invite_code text) as $$
+  select id, username, invite_code from public.profiles
+    where phone = query or invite_code = upper(query)
+    limit 1;
+$$ language sql security definer;
+
+grant execute on function public.find_profile_for_invite(text) to authenticated;
+
+-- 2. BIKES --------------------------------------------------------------
 create table if not exists public.bikes (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid references auth.users(id) on delete cascade not null,
@@ -48,6 +81,7 @@ create table if not exists public.bikes (
   photo_url text,
   odometer_km numeric default 0,
   avg_mileage numeric,
+  monthly_budget numeric,
   created_at timestamptz default now()
 );
 
@@ -56,7 +90,7 @@ drop policy if exists "Bikes are managed by owner" on public.bikes;
 create policy "Bikes are managed by owner" on public.bikes
   for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
 
--- 3. FUEL LOGS ------------------------------------------------------
+-- 3. FUEL LOGS ------------------------------------------------------------
 create table if not exists public.fuel_logs (
   id uuid primary key default gen_random_uuid(),
   bike_id uuid references public.bikes(id) on delete cascade not null,
@@ -75,14 +109,15 @@ create policy "Fuel logs are managed by bike owner" on public.fuel_logs
   for all using (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()))
   with check (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()));
 
--- Auto-calculate mileage & keep bike odometer in sync when a full tank is logged
+-- Auto-calculate mileage between full-tank fills, and always keep the
+-- bike's odometer/avg_mileage in sync regardless of the order logs are
+-- inserted in or a manually-entered starting odometer.
 create or replace function public.calc_fuel_mileage()
 returns trigger as $$
 declare
   prev record;
 begin
   if new.full_tank then
-    -- Mileage is only meaningful between two full-tank fills.
     select * into prev from public.fuel_logs
       where bike_id = new.bike_id and id <> new.id and full_tank = true and odometer_km < new.odometer_km
       order by odometer_km desc limit 1;
@@ -90,9 +125,6 @@ begin
       new.mileage := round((new.odometer_km - prev.odometer_km) / nullif(new.litres, 0), 2);
     end if;
   end if;
-  -- Always keep the bike's odometer at the highest known reading and
-  -- surface the latest mileage, regardless of the order logs are
-  -- inserted in or a manually-entered starting odometer.
   update public.bikes
     set odometer_km = greatest(coalesce(odometer_km, 0), new.odometer_km),
         avg_mileage = coalesce(new.mileage, avg_mileage)
@@ -106,151 +138,8 @@ create trigger trg_calc_fuel_mileage
   before insert on public.fuel_logs
   for each row execute procedure public.calc_fuel_mileage();
 
--- 4. EXPENSES ---------------------------------------------------------
-create table if not exists public.expenses (
-  id uuid primary key default gen_random_uuid(),
-  bike_id uuid references public.bikes(id) on delete cascade not null,
-  category text not null check (category in ('Service','Repair','Insurance','Accessories','Other')),
-  amount numeric not null,
-  note text,
-  logged_at timestamptz default now(),
-  created_at timestamptz default now()
-);
-
-alter table public.expenses enable row level security;
-drop policy if exists "Expenses are managed by bike owner" on public.expenses;
-create policy "Expenses are managed by bike owner" on public.expenses
-  for all using (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()))
-  with check (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()));
-
--- 5. TRIPS --------------------------------------------------------------
-create table if not exists public.trips (
-  id uuid primary key default gen_random_uuid(),
-  bike_id uuid references public.bikes(id) on delete cascade not null,
-  title text not null,
-  distance_km numeric not null,
-  duration_min integer,
-  start_place text,
-  end_place text,
-  logged_at timestamptz default now(),
-  created_at timestamptz default now()
-);
-
-alter table public.trips enable row level security;
-drop policy if exists "Trips are managed by bike owner" on public.trips;
-create policy "Trips are managed by bike owner" on public.trips
-  for all using (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()))
-  with check (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()));
-
--- 6. DOCUMENTS (Vault) ----------------------------------------------------
-create table if not exists public.documents (
-  id uuid primary key default gen_random_uuid(),
-  bike_id uuid references public.bikes(id) on delete cascade not null,
-  doc_type text not null check (doc_type in ('Insurance','RC','PUC','License','Other')),
-  doc_number text,
-  expiry_date date,
-  file_url text,
-  created_at timestamptz default now()
-);
-
-alter table public.documents enable row level security;
-drop policy if exists "Documents are managed by bike owner" on public.documents;
-create policy "Documents are managed by bike owner" on public.documents
-  for all using (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()))
-  with check (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()));
-
--- 7. REMINDERS ------------------------------------------------------------
-create table if not exists public.reminders (
-  id uuid primary key default gen_random_uuid(),
-  bike_id uuid references public.bikes(id) on delete cascade not null,
-  title text not null,
-  due_date date,
-  due_km numeric,
-  done boolean default false,
-  created_at timestamptz default now()
-);
-
-alter table public.reminders enable row level security;
-drop policy if exists "Reminders are managed by bike owner" on public.reminders;
-create policy "Reminders are managed by bike owner" on public.reminders
-  for all using (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()))
-  with check (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()));
-
--- 8. REALTIME -----------------------------------------------------------
--- Enable realtime replication so the app updates live across devices.
-do $$
-declare
-  tbl text;
-begin
-  foreach tbl in array array['bikes','fuel_logs','expenses','trips','documents','reminders'] loop
-    if not exists (
-      select 1 from pg_publication_tables
-      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = tbl
-    ) then
-      execute format('alter publication supabase_realtime add table public.%I', tbl);
-    end if;
-  end loop;
-end $$;
-
--- 9. STORAGE (optional, for bike photos & document uploads) -------------
-insert into storage.buckets (id, name, public) values ('bike-photos', 'bike-photos', true)
-  on conflict (id) do nothing;
-insert into storage.buckets (id, name, public) values ('vault-files', 'vault-files', false)
-  on conflict (id) do nothing;
-
-drop policy if exists "Bike photos are publicly readable" on storage.objects;
-create policy "Bike photos are publicly readable" on storage.objects
-  for select using (bucket_id = 'bike-photos');
-drop policy if exists "Authenticated users can upload bike photos" on storage.objects;
-create policy "Authenticated users can upload bike photos" on storage.objects
-  for insert with check (bucket_id = 'bike-photos' and auth.role() = 'authenticated');
-drop policy if exists "Owners can manage their vault files" on storage.objects;
-create policy "Owners can manage their vault files" on storage.objects
-  for all using (bucket_id = 'vault-files' and auth.uid()::text = (storage.foldername(name))[1]);
--- ============================================================
--- Fix: avg_mileage on bikes never updated when a fuel log's
--- odometer reading was lower than the bike's manually-entered
--- initial odometer (e.g. bike added with odometer_km = 691, then
--- earlier fuel logs at 0/310/500 km never triggered the update
--- because of the `odometer_km < new.odometer_km` guard on the
--- bikes UPDATE). This also switches the "previous fill" lookup to
--- only compare against other full-tank fills, which is the
--- correct way to compute km/l.
--- Run this once in Supabase SQL Editor.
--- ============================================================
-
-create or replace function public.calc_fuel_mileage()
-returns trigger as $$
-declare
-  prev record;
-begin
-  if new.full_tank then
-    select * into prev from public.fuel_logs
-      where bike_id = new.bike_id
-        and id <> new.id
-        and full_tank = true
-        and odometer_km < new.odometer_km
-      order by odometer_km desc limit 1;
-    if prev is not null then
-      new.mileage := round((new.odometer_km - prev.odometer_km) / nullif(new.litres, 0), 2);
-    end if;
-  end if;
-
-  -- Always keep the bike's odometer at the highest known reading,
-  -- and always surface the most recent mileage figure — regardless
-  -- of insertion order or a manually-entered starting odometer.
-  update public.bikes
-    set odometer_km = greatest(coalesce(odometer_km, 0), new.odometer_km),
-        avg_mileage = coalesce(new.mileage, avg_mileage)
-    where id = new.bike_id;
-
-  return new;
-end;
-$$ language plpgsql security definer;
-
--- Recompute mileage for any fuel logs that were inserted before this
--- fix and never got a mileage value, then resync each bike's
--- avg_mileage/odometer from its logs.
+-- Backfill mileage for any fuel logs that predate the trigger fix above,
+-- then resync each bike's odometer/avg_mileage from its logs.
 do $$
 declare
   r record;
@@ -275,65 +164,81 @@ begin
   end loop;
 end $$;
 
--- ============================================================
--- ============================================================
--- v2.3 — Rides (group rides + live "let's connect" voice),
--- monthly budget, geotagged trips, phone/invite-code lookup.
--- Run this once in Supabase SQL Editor.
--- ============================================================
+-- 4. EXPENSES ---------------------------------------------------------------
+create table if not exists public.expenses (
+  id uuid primary key default gen_random_uuid(),
+  bike_id uuid references public.bikes(id) on delete cascade not null,
+  category text not null check (category in ('Service','Repair','Insurance','Accessories','Other')),
+  amount numeric not null,
+  note text,
+  logged_at timestamptz default now(),
+  created_at timestamptz default now()
+);
 
--- 1. Extend profiles with phone + a short shareable invite code -------
-alter table public.profiles add column if not exists phone text;
-alter table public.profiles add column if not exists invite_code text unique;
+alter table public.expenses enable row level security;
+drop policy if exists "Expenses are managed by bike owner" on public.expenses;
+create policy "Expenses are managed by bike owner" on public.expenses
+  for all using (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()))
+  with check (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()));
 
-create or replace function public.gen_invite_code()
-returns text as $$
-declare
-  chars text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  code text := '';
-  i int;
-begin
-  for i in 1..6 loop
-    code := code || substr(chars, floor(random() * length(chars) + 1)::int, 1);
-  end loop;
-  return code;
-end;
-$$ language plpgsql;
+-- 5. TRIPS --------------------------------------------------------------------
+create table if not exists public.trips (
+  id uuid primary key default gen_random_uuid(),
+  bike_id uuid references public.bikes(id) on delete cascade not null,
+  title text not null,
+  distance_km numeric not null,
+  duration_min integer,
+  start_place text,
+  end_place text,
+  start_lat numeric,
+  start_lng numeric,
+  end_lat numeric,
+  end_lng numeric,
+  logged_at timestamptz default now(),
+  created_at timestamptz default now()
+);
 
-update public.profiles set invite_code = public.gen_invite_code() where invite_code is null;
+alter table public.trips enable row level security;
+drop policy if exists "Trips are managed by bike owner" on public.trips;
+create policy "Trips are managed by bike owner" on public.trips
+  for all using (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()))
+  with check (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()));
 
-create or replace function public.handle_new_user()
-returns trigger as $$
-begin
-  insert into public.profiles (id, username, email, invite_code)
-  values (new.id, coalesce(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)), new.email, public.gen_invite_code())
-  on conflict (id) do nothing;
-  return new;
-end;
-$$ language plpgsql security definer;
+-- 6. DOCUMENTS (Vault) --------------------------------------------------------
+create table if not exists public.documents (
+  id uuid primary key default gen_random_uuid(),
+  bike_id uuid references public.bikes(id) on delete cascade not null,
+  doc_type text not null check (doc_type in ('Insurance','RC','PUC','License','Other')),
+  doc_number text,
+  expiry_date date,
+  file_url text,
+  created_at timestamptz default now()
+);
 
--- Privacy-safe lookup: returns only id/username/invite_code for a phone
--- or invite-code match, without opening up full profile SELECT to
--- everyone (profiles stay owner-only otherwise).
-create or replace function public.find_profile_for_invite(query text)
-returns table(id uuid, username text, invite_code text) as $$
-  select id, username, invite_code from public.profiles
-    where phone = query or invite_code = upper(query)
-    limit 1;
-$$ language sql security definer;
+alter table public.documents enable row level security;
+drop policy if exists "Documents are managed by bike owner" on public.documents;
+create policy "Documents are managed by bike owner" on public.documents
+  for all using (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()))
+  with check (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()));
 
-grant execute on function public.find_profile_for_invite(text) to authenticated;
+-- 7. REMINDERS ------------------------------------------------------------------
+create table if not exists public.reminders (
+  id uuid primary key default gen_random_uuid(),
+  bike_id uuid references public.bikes(id) on delete cascade not null,
+  title text not null,
+  due_date date,
+  due_km numeric,
+  done boolean default false,
+  created_at timestamptz default now()
+);
 
--- 2. Monthly budget on bikes -------------------------------------------
-alter table public.bikes add column if not exists monthly_budget numeric;
+alter table public.reminders enable row level security;
+drop policy if exists "Reminders are managed by bike owner" on public.reminders;
+create policy "Reminders are managed by bike owner" on public.reminders
+  for all using (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()))
+  with check (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()));
 
--- 3. Geotagged trips -----------------------------------------------------
-alter table public.trips add column if not exists start_lat numeric;
-alter table public.trips add column if not exists start_lng numeric;
-alter table public.trips add column if not exists end_lat numeric;
-alter table public.trips add column if not exists end_lng numeric;
-
--- 4. RIDES ----------------------------------------------------------------
+-- 8. RIDES (group rides + live "Let's Connect" voice) --------------------------
 create table if not exists public.rides (
   id uuid primary key default gen_random_uuid(),
   host_id uuid references auth.users(id) on delete cascade not null,
@@ -369,28 +274,52 @@ create table if not exists public.ride_stops (
 
 alter table public.ride_stops enable row level security;
 
--- Visibility: a ride is visible to its host and to anyone listed as a
--- member. The self-referencing subquery on ride_members is a standard,
--- non-recursive Postgres RLS pattern (bounded by the user_id=auth.uid()
--- branch), not literal recursion.
+-- A policy on ride_members that queries ride_members again inside its own
+-- USING clause causes Postgres to detect infinite recursion — this was a
+-- real bug: it made any query touching ride_members fail with a 500
+-- error (including simply loading your Rides list). Moving the lookup
+-- into a SECURITY DEFINER function breaks the cycle, since the function
+-- runs as an independent query rather than being inlined into the same
+-- row-security check.
+create or replace function public.my_ride_ids()
+returns setof uuid
+language sql
+security definer
+stable
+as $$
+  select ride_id from public.ride_members where user_id = auth.uid();
+$$;
+
+create or replace function public.my_joined_ride_ids()
+returns setof uuid
+language sql
+security definer
+stable
+as $$
+  select ride_id from public.ride_members where user_id = auth.uid() and status = 'joined';
+$$;
+
+grant execute on function public.my_ride_ids() to authenticated;
+grant execute on function public.my_joined_ride_ids() to authenticated;
+
 drop policy if exists "Rides visible to host and members" on public.rides;
 create policy "Rides visible to host and members" on public.rides
   for select using (
     host_id = auth.uid()
-    or id in (select ride_id from public.ride_members where user_id = auth.uid())
+    or id in (select public.my_ride_ids())
   );
 drop policy if exists "Rides manageable by host" on public.rides;
 create policy "Rides manageable by host" on public.rides
   for all using (host_id = auth.uid()) with check (host_id = auth.uid());
 drop policy if exists "Members can update their own ride's status transitions" on public.rides;
 create policy "Members can update their own ride's status transitions" on public.rides
-  for update using (id in (select ride_id from public.ride_members where user_id = auth.uid()));
+  for update using (id in (select public.my_ride_ids()));
 
 drop policy if exists "Ride members can view membership for their rides" on public.ride_members;
 create policy "Ride members can view membership for their rides" on public.ride_members
   for select using (
     user_id = auth.uid()
-    or ride_id in (select ride_id from public.ride_members where user_id = auth.uid())
+    or ride_id in (select public.my_ride_ids())
     or ride_id in (select id from public.rides where host_id = auth.uid())
   );
 drop policy if exists "Host can add/manage members" on public.ride_members;
@@ -407,24 +336,31 @@ create policy "Invited users can update their own membership (accept/decline)" o
 drop policy if exists "Ride stops visible to ride members" on public.ride_stops;
 create policy "Ride stops visible to ride members" on public.ride_stops
   for select using (
-    ride_id in (select ride_id from public.ride_members where user_id = auth.uid())
+    ride_id in (select public.my_ride_ids())
     or ride_id in (select id from public.rides where host_id = auth.uid())
   );
 drop policy if exists "Ride members can add/manage stops" on public.ride_stops;
 create policy "Ride members can add/manage stops" on public.ride_stops
   for all using (
-    ride_id in (select ride_id from public.ride_members where user_id = auth.uid() and status = 'joined')
+    ride_id in (select public.my_joined_ride_ids())
     or ride_id in (select id from public.rides where host_id = auth.uid())
   ) with check (
-    ride_id in (select ride_id from public.ride_members where user_id = auth.uid() and status = 'joined')
+    ride_id in (select public.my_joined_ride_ids())
     or ride_id in (select id from public.rides where host_id = auth.uid())
   );
 
+-- 9. REALTIME -------------------------------------------------------------------
+-- Enable realtime replication so the app updates live across devices.
+-- (Adding a table that's already in the publication throws an error, so
+-- this only adds tables that aren't already members.)
 do $$
 declare
   tbl text;
 begin
-  foreach tbl in array array['rides','ride_members','ride_stops'] loop
+  foreach tbl in array array[
+    'bikes','fuel_logs','expenses','trips','documents','reminders',
+    'rides','ride_members','ride_stops'
+  ] loop
     if not exists (
       select 1 from pg_publication_tables
       where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = tbl
@@ -433,3 +369,19 @@ begin
     end if;
   end loop;
 end $$;
+
+-- 10. STORAGE (bike photos & document uploads) -----------------------------------
+insert into storage.buckets (id, name, public) values ('bike-photos', 'bike-photos', true)
+  on conflict (id) do nothing;
+insert into storage.buckets (id, name, public) values ('vault-files', 'vault-files', false)
+  on conflict (id) do nothing;
+
+drop policy if exists "Bike photos are publicly readable" on storage.objects;
+create policy "Bike photos are publicly readable" on storage.objects
+  for select using (bucket_id = 'bike-photos');
+drop policy if exists "Authenticated users can upload bike photos" on storage.objects;
+create policy "Authenticated users can upload bike photos" on storage.objects
+  for insert with check (bucket_id = 'bike-photos' and auth.role() = 'authenticated');
+drop policy if exists "Owners can manage their vault files" on storage.objects;
+create policy "Owners can manage their vault files" on storage.objects
+  for all using (bucket_id = 'vault-files' and auth.uid()::text = (storage.foldername(name))[1]);

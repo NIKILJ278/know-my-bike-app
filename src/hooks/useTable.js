@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { supabase, freshChannel } from '../lib/supabaseClient'
 
 /**
  * Generic hook: subscribes to realtime changes on `table` for a given bike_id,
@@ -25,8 +25,7 @@ export function useTable(table, bikeId, orderBy = { column: 'created_at', ascend
 
   useEffect(() => {
     if (!bikeId) return
-    const channel = supabase
-      .channel(`${table}-${bikeId}`)
+    const channel = freshChannel(`${table}-${bikeId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table, filter: `bike_id=eq.${bikeId}` }, () => refresh())
       .subscribe()
     return () => { supabase.removeChannel(channel) }

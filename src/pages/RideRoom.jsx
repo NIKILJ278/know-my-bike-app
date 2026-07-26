@@ -15,7 +15,7 @@ export default function RideRoom() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, profile } = useAuth()
-  const { ride, members, stops, myMembership, loading, inviteByPhoneOrCode, respondToInvite, addStop, removeStop, setStatus } = useRide(id)
+  const { ride, members, stops, myMembership, loading, error, inviteByPhoneOrCode, respondToInvite, addStop, removeStop, setStatus } = useRide(id)
   const username = profile?.username || user?.email?.split('@')[0] || 'Rider'
   const call = useRideCall(id, user?.id, username)
 
@@ -32,7 +32,28 @@ export default function RideRoom() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state?.autoJoin])
 
-  if (loading || !ride) return null
+  if (loading) {
+    return (
+      <div className="px-6 pt-14 flex flex-col items-center text-center py-16">
+        <div className="w-10 h-10 rounded-full border-2 border-ink/20 dark:border-white/20 border-t-amber animate-spin mb-4" />
+        <p className="text-ink/50 dark:text-white/50">Loading ride…</p>
+      </div>
+    )
+  }
+
+  if (!ride) {
+    return (
+      <div className="px-6 pt-14 flex flex-col items-center text-center py-16">
+        <div className="w-16 h-16 rounded-full bg-surface-muted dark:bg-surface-darkmuted flex items-center justify-center text-2xl mb-4">⚠️</div>
+        <p className="font-bold text-lg mb-1">Couldn't load this ride</p>
+        <p className="text-ink/50 dark:text-white/50 mb-1 max-w-xs">
+          {error?.message || 'It may have been removed, or you may not have access to it.'}
+        </p>
+        {error?.code && <p className="text-xs text-ink/30 dark:text-white/30 mb-6">Error code: {error.code}</p>}
+        <button onClick={() => navigate('/rides')} className="btn-primary w-auto px-6 mt-4">Back to Rides</button>
+      </div>
+    )
+  }
 
   const isHost = ride.host_id === user.id
   const hasJoined = myMembership?.status === 'joined'

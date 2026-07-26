@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { supabase, freshChannel } from '../lib/supabaseClient'
 import { useAuth } from './AuthContext'
 
 const BikeContext = createContext(null)
@@ -31,8 +31,7 @@ export function BikeProvider({ children }) {
   // Realtime: keep garage in sync across devices/tabs
   useEffect(() => {
     if (!user) return
-    const channel = supabase
-      .channel('bikes-realtime')
+    const channel = freshChannel('bikes-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bikes', filter: `owner_id=eq.${user.id}` },
         () => refreshBikes())
       .subscribe()

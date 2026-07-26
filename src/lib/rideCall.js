@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient'
+import { supabase, sharedChannel } from './supabaseClient'
 
 // Public, free STUN servers — enough to discover a device's public
 // address for most home/mobile networks. There is intentionally no TURN
@@ -40,7 +40,7 @@ export function createRideCall(rideId, userId, username) {
 
   function ensureChannel() {
     if (channel) return channel
-    channel = supabase.channel(channelName, { config: { presence: { key: userId }, broadcast: { self: false } } })
+    channel = sharedChannel(channelName, { config: { presence: { key: userId }, broadcast: { self: false } } })
 
     channel.on('broadcast', { event: 'ring' }, ({ payload }) => {
       if (payload.from !== userId) emit('ring', payload)
