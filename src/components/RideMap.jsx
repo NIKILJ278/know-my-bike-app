@@ -52,5 +52,9 @@ export default function RideMap({ stops = [], onMapClick, height = 260 }) {
     map.fitBounds(bounds, { padding: [32, 32], maxZoom: 14 })
   }, [stops])
 
-  return <div ref={containerRef} style={{ height }} className="w-full rounded-2xl overflow-hidden" />
+  return (
+    <div className="relative isolate w-full rounded-2xl overflow-hidden" style={{ height }}>
+      <div ref={containerRef} className="w-full h-full" />
+    </div>
+  )
 }
