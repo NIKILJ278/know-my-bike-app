@@ -178,7 +178,19 @@ create policy "Reminders are managed by bike owner" on public.reminders
 
 -- 8. REALTIME -----------------------------------------------------------
 -- Enable realtime replication so the app updates live across devices.
-alter publication supabase_realtime add table public.bikes, public.fuel_logs, public.expenses, public.trips, public.documents, public.reminders;
+do $$
+declare
+  tbl text;
+begin
+  foreach tbl in array array['bikes','fuel_logs','expenses','trips','documents','reminders'] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = tbl
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', tbl);
+    end if;
+  end loop;
+end $$;
 
 -- 9. STORAGE (optional, for bike photos & document uploads) -------------
 insert into storage.buckets (id, name, public) values ('bike-photos', 'bike-photos', true)
@@ -186,10 +198,13 @@ insert into storage.buckets (id, name, public) values ('bike-photos', 'bike-phot
 insert into storage.buckets (id, name, public) values ('vault-files', 'vault-files', false)
   on conflict (id) do nothing;
 
+drop policy if exists "Bike photos are publicly readable" on storage.objects;
 create policy "Bike photos are publicly readable" on storage.objects
   for select using (bucket_id = 'bike-photos');
+drop policy if exists "Authenticated users can upload bike photos" on storage.objects;
 create policy "Authenticated users can upload bike photos" on storage.objects
   for insert with check (bucket_id = 'bike-photos' and auth.role() = 'authenticated');
+drop policy if exists "Owners can manage their vault files" on storage.objects;
 create policy "Owners can manage their vault files" on storage.objects
   for all using (bucket_id = 'vault-files' and auth.uid()::text = (storage.foldername(name))[1]);
 -- ============================================================
@@ -405,4 +420,16 @@ create policy "Ride members can add/manage stops" on public.ride_stops
     or ride_id in (select id from public.rides where host_id = auth.uid())
   );
 
-alter publication supabase_realtime add table public.rides, public.ride_members, public.ride_stops;
+do $$
+declare
+  tbl text;
+begin
+  foreach tbl in array array['rides','ride_members','ride_stops'] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = tbl
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', tbl);
+    end if;
+  end loop;
+end $$;

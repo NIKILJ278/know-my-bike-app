@@ -142,4 +142,16 @@ create policy "Ride members can add/manage stops" on public.ride_stops
     or ride_id in (select id from public.rides where host_id = auth.uid())
   );
 
-alter publication supabase_realtime add table public.rides, public.ride_members, public.ride_stops;
+do $$
+declare
+  tbl text;
+begin
+  foreach tbl in array array['rides','ride_members','ride_stops'] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = tbl
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', tbl);
+    end if;
+  end loop;
+end $$;
