@@ -9,6 +9,8 @@ import AddStopModal from '../components/modals/AddStopModal.jsx'
 import InviteMemberModal from '../components/modals/InviteMemberModal.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import { navigateToStops } from '../lib/location'
+import BikeLogo from '../components/BikeLogo.jsx'
+import { WarningIcon } from '../components/icons/Icon.jsx'
 
 const STATUS_LABEL = { invited: 'Invited', joined: 'Joined', declined: 'Declined' }
 
@@ -46,7 +48,7 @@ export default function RideRoom() {
   if (!ride) {
     return (
       <div className="px-6 pt-14 flex flex-col items-center text-center py-16">
-        <div className="w-16 h-16 rounded-full bg-surface-muted dark:bg-surface-darkmuted flex items-center justify-center text-2xl mb-4">⚠️</div>
+        <div className="w-16 h-16 rounded-full bg-surface-muted dark:bg-surface-darkmuted flex items-center justify-center mb-4"><WarningIcon size={26} className="text-ink/50 dark:text-white/50" /></div>
         <p className="font-bold text-lg mb-1">Couldn't load this ride</p>
         <p className="text-ink/50 dark:text-white/50 mb-1 max-w-xs">
           {error?.message || 'It may have been removed, or you may not have access to it.'}
@@ -230,7 +232,7 @@ export default function RideRoom() {
 function IncomingCallCard({ name, onAccept, onDecline }) {
   return (
     <div className="fixed inset-0 z-[70] bg-black/70 flex flex-col items-center justify-center gap-6 px-8">
-      <div className="w-24 h-24 rounded-full bg-amber flex items-center justify-center text-4xl animate-pulse">🏍️</div>
+      <div className="w-24 h-24 rounded-full bg-amber flex items-center justify-center animate-pulse"><BikeLogo size={38} className="text-ink" /></div>
       <div className="text-center">
         <p className="text-white text-xl font-display font-extrabold">{name || 'A rider'} is calling the group</p>
         <p className="text-white/60 text-sm mt-1">Ride walkie-talkie</p>

@@ -2,6 +2,7 @@ import Wordmark from '../components/Wordmark.jsx'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { MailIcon } from '../components/icons/Icon.jsx'
 
 export default function Signup() {
   const { signUpWithEmail, authError, clearAuthError } = useAuth()
@@ -39,7 +40,7 @@ export default function Signup() {
   if (done) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-center px-8 bg-bg-light dark:bg-bg-dark text-ink dark:text-white">
-        <div className="text-4xl mb-4">📬</div>
+        <MailIcon size={36} className="text-amber mb-4" />
         <h1 className="text-2xl font-display font-extrabold mb-2">Confirm your email</h1>
         <p className="text-ink/50 dark:text-white/50 mb-8">We sent a confirmation link to {email}. Verify it, then log in.</p>
         <Link to="/login" className="btn-primary inline-block max-w-xs">Back to login</Link>

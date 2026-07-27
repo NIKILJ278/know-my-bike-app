@@ -13,6 +13,7 @@ import AddReminderModal from '../components/modals/AddReminderModal.jsx'
 import AddBikeModal from '../components/modals/AddBikeModal.jsx'
 import { formatINR, formatDate } from '../lib/format'
 import { visualFor, barColorFor } from '../lib/categoryVisual'
+import { WrenchIcon } from '../components/icons/Icon.jsx'
 import { BarTrend, LineTrend, DonutBreakdown } from '../components/charts/TrendCharts.jsx'
 
 export default function Garage() {
@@ -182,7 +183,7 @@ export default function Garage() {
           <div className="flex flex-col gap-2">
             {reminders.rows.map((r) => (
               <div key={r.id} className="card px-4 py-3.5 flex items-center gap-3">
-                <span className="text-xl">🔧</span>
+                <div className="w-10 h-10 rounded-xl bg-pastel-blue flex items-center justify-center shrink-0"><WrenchIcon size={17} className="text-blue-700" /></div>
                 <div>
                   <p className="font-semibold">{r.title}</p>
                   <p className="text-sm text-ink/50 dark:text-white/50">
@@ -208,7 +209,7 @@ export default function Garage() {
             const v = visualFor(r.category)
             return (
               <div key={r.id} className={`flex items-center gap-3 py-3 ${i !== recentActivity.length - 1 ? 'border-b border-black/5 dark:border-white/10' : ''}`}>
-                <div className={`w-11 h-11 rounded-xl ${v.bg} flex items-center justify-center text-lg`}>{v.emoji}</div>
+                <div className={`w-11 h-11 rounded-xl ${v.bg} flex items-center justify-center`}><v.icon size={19} className={v.tint} /></div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold truncate">{r.title}</p>
                   <p className="text-sm text-ink/50 dark:text-white/50">{formatDate(r.date)} · {r.category}</p>

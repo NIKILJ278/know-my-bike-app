@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useBikes } from '../context/BikeContext'
 import { supabase } from '../lib/supabaseClient'
+import { BotIcon } from '../components/icons/Icon.jsx'
 
 const PROMPTS = ['Suggest a service schedule', 'How to improve my mileage?', "What's due soon on my bike?"]
 
@@ -42,7 +43,7 @@ export default function AskAI() {
           <h1 className="text-2xl font-display font-extrabold">Ask AI</h1>
           <p className="text-ink/50 dark:text-white/50">Anything about your bike — maintenance, mileage, mods.</p>
         </div>
-        <div className="w-11 h-11 rounded-full bg-surface-muted dark:bg-surface-darkmuted flex items-center justify-center text-lg shrink-0">🤖</div>
+        <div className="w-11 h-11 rounded-full bg-surface-muted dark:bg-surface-darkmuted flex items-center justify-center shrink-0"><BotIcon size={20} className="text-ink/70 dark:text-white/70" /></div>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto -mx-6 px-6">

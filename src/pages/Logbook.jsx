@@ -231,7 +231,7 @@ function ListOrEmpty({ rows, empty, render, emptyAction, extraBottomPad }) {
   if (rows.length === 0) {
     return (
       <div className="flex flex-col items-center text-center py-16">
-        <div className="w-20 h-20 rounded-full bg-surface-muted dark:bg-surface-darkmuted flex items-center justify-center text-3xl mb-4">🔍</div>
+        <div className="w-20 h-20 rounded-full bg-surface-muted dark:bg-surface-darkmuted flex items-center justify-center mb-4"><SearchIcon size={28} className="text-ink/50 dark:text-white/50" /></div>
         <p className="font-bold text-lg mb-1">No logs yet</p>
         <p className="text-ink/50 dark:text-white/50 mb-6">{empty}</p>
         {emptyAction && <button onClick={emptyAction} className="btn-dark w-auto px-6">Add Log</button>}
@@ -253,7 +253,7 @@ function Row({ icon, title, subtitle, amount, last, selectMode, selected, onTap 
           {selected && <CheckIcon />}
         </span>
       )}
-      <div className={`w-11 h-11 rounded-xl ${icon.bg} flex items-center justify-center text-lg shrink-0`}>{icon.emoji}</div>
+      <div className={`w-11 h-11 rounded-xl ${icon.bg} flex items-center justify-center shrink-0`}><icon.icon size={19} className={icon.tint} /></div>
       <div className="flex-1 min-w-0">
         <p className="font-semibold truncate">{title}</p>
         <p className="text-sm text-ink/50 dark:text-white/50">{subtitle}</p>
@@ -279,9 +279,9 @@ function CheckIcon() {
   )
 }
 
-function SearchIcon({ className }) {
+function SearchIcon({ className, size = 16 }) {
   return (
-    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" />
     </svg>
   )

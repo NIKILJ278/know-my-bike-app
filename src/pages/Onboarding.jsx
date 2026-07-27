@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBikes } from '../context/BikeContext'
 import { useAuth } from '../context/AuthContext'
+import BikeLogo from '../components/BikeLogo.jsx'
 
 export default function Onboarding() {
   const { addBike, bikes, loading: bikesLoading } = useBikes()
@@ -36,7 +37,7 @@ export default function Onboarding() {
   return (
     <div className="min-h-screen flex flex-col bg-bg-light dark:bg-bg-dark text-ink dark:text-white px-6 pt-16 pb-10">
       <div className="max-w-sm w-full mx-auto flex-1 flex flex-col">
-        <div className="text-4xl mb-4">🏁</div>
+        <BikeLogo size={34} className="text-amber mb-4" />
         <h1 className="text-3xl font-display font-extrabold">Add your first ride</h1>
         <p className="text-ink/50 dark:text-white/50 mt-1 mb-8">Set up your garage to start logging fuel, service and trips.</p>
 

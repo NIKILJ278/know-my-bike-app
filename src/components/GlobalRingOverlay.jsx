@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useRides } from '../hooks/useRides'
 import { createRideCall } from '../lib/rideCall'
+import { BikeIcon, CheckIcon, CloseIcon } from './icons/Icon.jsx'
 
 export default function GlobalRingOverlay() {
   const { user, profile } = useAuth()
@@ -49,14 +50,14 @@ export default function GlobalRingOverlay() {
 
   return (
     <div className="fixed inset-0 z-[80] bg-black/80 flex flex-col items-center justify-center gap-6 px-8">
-      <div className="w-24 h-24 rounded-full bg-amber flex items-center justify-center text-4xl animate-pulse">🏍️</div>
+      <div className="w-24 h-24 rounded-full bg-amber flex items-center justify-center animate-pulse"><BikeIcon size={38} className="text-ink" /></div>
       <div className="text-center">
         <p className="text-white/60 text-sm mb-1">{ring.rideName}</p>
         <p className="text-white text-xl font-display font-extrabold">{ring.fromName || 'A rider'} is calling the group</p>
       </div>
       <div className="flex gap-6">
-        <button onClick={() => setRing(null)} className="tap w-16 h-16 rounded-full bg-red-500 text-white flex items-center justify-center text-2xl">✕</button>
-        <button onClick={() => { navigate(`/rides/${ring.rideId}`, { state: { autoJoin: true } }); setRing(null) }} className="tap w-16 h-16 rounded-full bg-green-500 text-white flex items-center justify-center text-2xl">✓</button>
+        <button onClick={() => setRing(null)} className="tap w-16 h-16 rounded-full bg-red-500 text-white flex items-center justify-center"><CloseIcon size={26} /></button>
+        <button onClick={() => { navigate(`/rides/${ring.rideId}`, { state: { autoJoin: true } }); setRing(null) }} className="tap w-16 h-16 rounded-full bg-green-500 text-white flex items-center justify-center"><CheckIcon size={26} /></button>
       </div>
     </div>
   )

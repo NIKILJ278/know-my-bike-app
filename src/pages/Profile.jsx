@@ -5,6 +5,7 @@ import { useUserReport } from '../hooks/useUserReport'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 import { formatINR, formatDate, daysUntil } from '../lib/format'
 import { barColorFor } from '../lib/categoryVisual'
+import BikeLogo from '../components/BikeLogo.jsx'
 
 export default function Profile() {
   const { profile, user, signOut, updateProfile } = useAuth()
@@ -333,7 +334,7 @@ export default function Profile() {
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-pastel-yellow flex items-center justify-center text-lg shrink-0">🏍️</div>
+                  <div className="w-11 h-11 rounded-xl bg-pastel-yellow flex items-center justify-center shrink-0"><BikeLogo size={20} className="text-amber-dark" /></div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold truncate">{b.name}</p>
                     <p className="text-sm text-ink/50 dark:text-white/50 truncate">

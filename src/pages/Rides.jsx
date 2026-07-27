@@ -6,6 +6,8 @@ import Sheet from '../components/Sheet.jsx'
 import Fab from '../components/Fab.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import { formatDate } from '../lib/format'
+import BikeLogo from '../components/BikeLogo.jsx'
+import { FlagIcon } from '../components/icons/Icon.jsx'
 
 const STATUS_TINT = {
   planning: 'bg-pastel-blue text-blue-900',
@@ -73,7 +75,7 @@ export default function Rides() {
 
       {!loading && rides.length === 0 && (
         <div className="flex flex-col items-center text-center py-16">
-          <div className="w-20 h-20 rounded-full bg-surface-muted dark:bg-surface-darkmuted flex items-center justify-center text-3xl mb-4">🏍️</div>
+          <div className="w-20 h-20 rounded-full bg-surface-muted dark:bg-surface-darkmuted flex items-center justify-center mb-4"><BikeLogo size={34} className="text-ink/60 dark:text-white/60" /></div>
           <p className="font-bold text-lg mb-1">No rides yet</p>
           <p className="text-ink/50 dark:text-white/50 mb-6">Start a ride, add stops, and invite your riding crew.</p>
           <button onClick={() => setShowModal(true)} className="btn-primary w-auto px-6">Start a Ride</button>
@@ -100,7 +102,7 @@ export default function Rides() {
                     {isSelected && <CheckIcon />}
                   </span>
                 )}
-                <div className="w-11 h-11 rounded-xl bg-pastel-teal flex items-center justify-center text-lg shrink-0">🏁</div>
+                <div className="w-11 h-11 rounded-xl bg-pastel-teal flex items-center justify-center shrink-0"><FlagIcon size={19} className="text-teal-700" /></div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold truncate">{r.name}</p>
                   <p className="text-sm text-ink/50 dark:text-white/50">

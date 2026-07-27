@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { CheckCircleIcon } from '../components/icons/Icon.jsx'
 
 const STEPS = { EMAIL: 1, OTP: 2, NEW_PW: 3, DONE: 4 }
 
@@ -97,7 +98,7 @@ export default function ForgotPassword() {
 
         {step === STEPS.DONE && (
           <div className="flex-1 flex flex-col items-center justify-center text-center">
-            <div className="text-4xl mb-4">✅</div>
+            <CheckCircleIcon size={40} className="text-green-500 mb-4" />
             <h1 className="text-2xl font-display font-extrabold mb-2">Password updated</h1>
             <p className="text-ink/50 dark:text-white/50">Taking you into the app…</p>
           </div>
