@@ -3,10 +3,20 @@ import { supabase, freshChannel } from '../lib/supabaseClient'
 import { useAuth } from './AuthContext'
 
 const BikeContext = createContext(null)
+const BIKES_CACHE_KEY = 'kmb-cache:bikes'
+
+function readBikesCache() {
+  try {
+    const raw = localStorage.getItem(BIKES_CACHE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
 
 export function BikeProvider({ children }) {
   const { user, loading: authLoading } = useAuth()
-  const [bikes, setBikes] = useState([])
+  const [bikes, setBikes] = useState(readBikesCache)
   const [activeBikeId, setActiveBikeId] = useState(() => localStorage.getItem('know-my-bike-active-bike'))
   const [loading, setLoading] = useState(true)
 
@@ -14,13 +24,23 @@ export function BikeProvider({ children }) {
     if (authLoading) return // auth session hasn't resolved yet — don't decide anything early
     if (!user) { setBikes([]); setLoading(false); return }
     setLoading(true)
-    const { data, error } = await supabase
-      .from('bikes')
-      .select('*')
-      .order('created_at', { ascending: true })
-    if (!error && data) {
-      setBikes(data)
-      if (!activeBikeId && data.length) setActiveBikeId(data[0].id)
+    try {
+      const { data, error } = await supabase
+        .from('bikes')
+        .select('*')
+        .order('created_at', { ascending: true })
+      if (!error && data) {
+        setBikes(data)
+        try { localStorage.setItem(BIKES_CACHE_KEY, JSON.stringify(data)) } catch { /* storage full — skip caching */ }
+        if (!activeBikeId && data.length) setActiveBikeId(data[0].id)
+      }
+      // If the query itself returned an error (not a thrown exception),
+      // fall through and keep whatever's already on screen — better than
+      // wiping the garage to empty over a transient server error.
+    } catch {
+      // No network reached at all — keep showing the last cached bikes
+      // instead of clearing the garage (which would wrongly send the
+      // rider to onboarding as if they'd never added a bike).
     }
     setLoading(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps

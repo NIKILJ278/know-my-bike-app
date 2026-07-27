@@ -12,6 +12,7 @@ import AskAI from './pages/AskAI.jsx'
 import Profile from './pages/Profile.jsx'
 import Rides from './pages/Rides.jsx'
 import RideRoom from './pages/RideRoom.jsx'
+import Speedometer from './pages/Speedometer.jsx'
 import GlobalRingOverlay from './components/GlobalRingOverlay.jsx'
 import Wordmark from './components/Wordmark.jsx'
 import { useBikes } from './context/BikeContext'
@@ -70,6 +71,10 @@ export default function App() {
         <Route path="ask-ai" element={<AskAI />} />
         <Route path="profile" element={<Profile />} />
       </Route>
+      <Route
+        path="/speedometer"
+        element={<RequireAuth><RequireBike><Speedometer /></RequireBike></RequireAuth>}
+      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

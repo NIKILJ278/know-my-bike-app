@@ -2,6 +2,52 @@ import { Geolocation } from '@capacitor/geolocation'
 import { Capacitor } from '@capacitor/core'
 
 /**
+ * Starts watching the device's GPS and calls onUpdate with the current
+ * speed in km/h (and raw coords) every time a new fix comes in. GPS speed
+ * is only meaningful while actually moving — most devices report 0 or
+ * null when stationary, which is expected, not a bug. Returns a stop()
+ * function to end tracking.
+ */
+export async function watchSpeed(onUpdate, onError) {
+  const toKmh = (mps) => (mps == null || mps < 0 ? 0 : mps * 3.6)
+
+  if (Capacitor.isNativePlatform()) {
+    const perm = await Geolocation.requestPermissions()
+    if (perm.location !== 'granted' && perm.coarseLocation !== 'granted') {
+      onError?.(new Error('Location permission was denied.'))
+      return () => {}
+    }
+    const watchId = await Geolocation.watchPosition({ enableHighAccuracy: true }, (pos, err) => {
+      if (err) { onError?.(err); return }
+      if (!pos) return
+      onUpdate({
+        speedKmh: toKmh(pos.coords.speed),
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+      })
+    })
+    return () => Geolocation.clearWatch({ id: watchId })
+  }
+
+  if (!navigator.geolocation) {
+    onError?.(new Error('Location is not available in this browser.'))
+    return () => {}
+  }
+  const id = navigator.geolocation.watchPosition(
+    (pos) => onUpdate({
+      speedKmh: toKmh(pos.coords.speed),
+      lat: pos.coords.latitude,
+      lng: pos.coords.longitude,
+      accuracy: pos.coords.accuracy,
+    }),
+    (err) => onError?.(err),
+    { enableHighAccuracy: true }
+  )
+  return () => navigator.geolocation.clearWatch(id)
+}
+
+/**
  * Gets the device's current GPS location, requesting permission the
  * first time it's used. Falls back to the browser's geolocation API when
  * running outside the native app (e.g. local dev in a browser).

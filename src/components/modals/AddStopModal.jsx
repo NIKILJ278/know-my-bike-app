@@ -16,7 +16,7 @@ export default function AddStopModal({ onClose, onAdd, presetCoords }) {
   // Nominatim API (it rate-limits aggressively), which is why searches
   // could silently go nowhere. Waiting for a pause in typing fixes that.
   useEffect(() => {
-    if (query.trim().length < 3) { setResults([]); setSearching(false); return }
+    if (query.trim().length < 2) { setResults([]); setSearching(false); return }
     setSearching(true)
     clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(async () => {
@@ -58,7 +58,7 @@ export default function AddStopModal({ onClose, onAdd, presetCoords }) {
           autoFocus={!presetCoords}
         />
 
-        {query.trim().length >= 3 && (
+        {query.trim().length >= 2 && (
           <div className="flex flex-col -mt-2 max-h-48 overflow-y-auto">
             {searching && <p className="text-sm text-ink/40 dark:text-white/40 py-2">Searching…</p>}
             {!searching && results.map((r, i) => (
@@ -80,6 +80,7 @@ export default function AddStopModal({ onClose, onAdd, presetCoords }) {
           stops={pin ? [{ ...pin, label: customLabel || 'Pin' }] : []}
           onMapClick={(lat, lng) => { setPin({ lat, lng }); setResults([]); setQuery('') }}
           onLocate={(coords) => { setPin(coords); setCustomLabel((prev) => prev || 'My location') }}
+          autoLocate={!presetCoords}
           height={200}
         />
 

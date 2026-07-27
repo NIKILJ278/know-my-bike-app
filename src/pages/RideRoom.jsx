@@ -140,7 +140,7 @@ export default function RideRoom() {
           <h3 className="font-display font-bold">Route</h3>
           <button onClick={() => { setPendingPin(null); setShowAddStop(true) }} className="text-sm font-semibold text-amber-dark dark:text-amber">+ Add stop</button>
         </div>
-        <RideMap stops={stops} onMapClick={handleMapClick} />
+        <RideMap stops={stops} onMapClick={handleMapClick} autoLocate />
         <p className="text-xs text-ink/40 dark:text-white/40 mt-2">Tap the map to drop a pin, search in Add Stop, or use the locate button to find yourself. Free OpenStreetMap — no account needed.</p>
 
         {stops.length > 0 && (

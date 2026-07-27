@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "android:add": "node ./node_modules/@capacitor/cli/bin/capacitor add android && node scripts/add-oauth-redirect.cjs && node scripts/add-mic-permission.cjs && npx @capacitor/assets generate --android",
+    "android:add": "node ./node_modules/@capacitor/cli/bin/capacitor add android && node scripts/add-oauth-redirect.cjs && node scripts/add-mic-permission.cjs && node scripts/add-location-permission.cjs && npx @capacitor/assets generate --android",
     "android:sync": "npm run build && node ./node_modules/@capacitor/cli/bin/capacitor sync android",
     "android:open": "node ./node_modules/@capacitor/cli/bin/capacitor open android"
   },

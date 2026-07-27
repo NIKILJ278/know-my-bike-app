@@ -119,6 +119,20 @@ export default function Garage() {
 
       <BikeHeroCard bike={activeBike} />
 
+      <Link
+        to="/speedometer"
+        className="tap w-full flex items-center gap-3 bg-ink dark:bg-white text-white dark:text-ink rounded-2xl px-4 py-3.5 mb-6"
+      >
+        <span className="w-9 h-9 rounded-full bg-amber flex items-center justify-center shrink-0">
+          <SpeedoIcon />
+        </span>
+        <span className="flex-1 text-left">
+          <span className="block font-semibold text-sm">Speedometer</span>
+          <span className="block text-xs opacity-60">Live GPS speed for this ride</span>
+        </span>
+        <ChevronIcon />
+      </Link>
+
       <div className="grid grid-cols-2 gap-3 mb-4">
         <button
           onClick={() => { setBudgetInput(budget ? String(budget) : ''); setModal('budget') }}
@@ -273,4 +287,6 @@ function FuelIcon() { return <svg width="20" height="20" viewBox="0 0 24 24" fil
 function ExpenseIcon() { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2" /><path d="M6 6v0M18 18v0" /></svg> }
 function TripIcon() { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="6" r="2" /><circle cx="18" cy="18" r="2" /><path d="M8 6h8a2 2 0 0 1 2 2v8" strokeDasharray="3 3" /></svg> }
 function ReminderIcon() { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /><circle cx="18" cy="6" r="3" fill="currentColor" stroke="none" /></svg> }
+function SpeedoIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#12141C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a9 9 0 1 0 9 9" /><path d="M12 12 17 7" /><circle cx="12" cy="12" r="1.4" fill="#12141C" stroke="none" /></svg> }
+function ChevronIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="opacity-40"><path d="m9 6 6 6-6 6" /></svg> }
 function PlusIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg> }

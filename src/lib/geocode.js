@@ -4,7 +4,14 @@
 // storage, map links) doesn't need to change.
 export async function searchPlaces(query) {
   if (!query || query.trim().length < 2) return []
-  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q=${encodeURIComponent(query)}`
+  const params = new URLSearchParams({
+    format: 'jsonv2',
+    limit: '6',
+    q: query,
+    countrycodes: 'in', // bias results to India, where this app's riders are — keeps
+                         // short queries like "MG Road" from returning random global matches
+  })
+  const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`
   try {
     const res = await fetch(url, { headers: { 'Accept-Language': 'en' } })
     if (!res.ok) return []
