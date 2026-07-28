@@ -1,9 +1,17 @@
 {
-  "name": "Know My Bike — Bike Garage & Expense Tracker",
+  "name": "Know My Bike",
   "short_name": "Know My Bike",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0B0D12",
   "theme_color": "#12141C",
-  "orientation": "portrait"
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
 }
