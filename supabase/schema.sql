@@ -109,90 +109,94 @@ create policy "Fuel logs are managed by bike owner" on public.fuel_logs
   for all using (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()))
   with check (exists (select 1 from public.bikes b where b.id = bike_id and b.owner_id = auth.uid()));
 
--- Mileage (full-to-full method) — see migrations/0005_rework_mileage.sql
-create or replace function public.recompute_bike_mileage(p_bike_id uuid)
-returns void as $$
+-- Mileage (full-to-full method, weighted average) — see migrations/0005_rework_mileage.sql
+create or replace function public.recompute_bike_fuel_stats(target_bike_id uuid)
+returns void
+language plpgsql
+security definer
+as $function$
 declare
   r record;
-  prev_full_odo numeric := null;
-  litres_acc numeric := 0;
+  prev_odometer numeric;
+  accumulated_litres numeric := 0;
+  has_anchor boolean := false;
   seg_mileage numeric;
   tot_dist numeric := 0;
   tot_litres numeric := 0;
-  max_odo numeric := null;
 begin
+  -- Full-to-full: walk fills in odometer order, accumulate litres (partials
+  -- included) and close a segment on each full-tank fill.
   for r in
     select id, litres, odometer_km, full_tank
     from public.fuel_logs
-    where bike_id = p_bike_id
+    where bike_id = target_bike_id
     order by odometer_km asc, created_at asc
   loop
-    max_odo := r.odometer_km;
+    accumulated_litres := accumulated_litres + coalesce(r.litres, 0);
     seg_mileage := null;
 
-    if prev_full_odo is not null then
-      litres_acc := litres_acc + coalesce(r.litres, 0);
-    end if;
-
     if r.full_tank then
-      if prev_full_odo is not null
-         and r.odometer_km > prev_full_odo
-         and litres_acc > 0 then
-        seg_mileage := round((r.odometer_km - prev_full_odo) / litres_acc, 2);
-        tot_dist := tot_dist + (r.odometer_km - prev_full_odo);
-        tot_litres := tot_litres + litres_acc;
+      if has_anchor and r.odometer_km > prev_odometer and accumulated_litres > 0 then
+        seg_mileage := round((r.odometer_km - prev_odometer) / accumulated_litres, 2);
+        tot_dist := tot_dist + (r.odometer_km - prev_odometer);
+        tot_litres := tot_litres + accumulated_litres;
       end if;
-      prev_full_odo := r.odometer_km;
-      litres_acc := 0;
+      prev_odometer := r.odometer_km;
+      accumulated_litres := 0;
+      has_anchor := true;
     end if;
 
     update public.fuel_logs set mileage = seg_mileage
       where id = r.id and mileage is distinct from seg_mileage;
   end loop;
 
-  update public.bikes
-    set odometer_km = greatest(coalesce(odometer_km, 0), coalesce(max_odo, 0)),
+  -- Bike average = total distance / total litres (weighted), not a plain
+  -- mean of per-fill figures.
+  update public.bikes b
+    set odometer_km = greatest(
+          coalesce(b.odometer_km, 0),
+          coalesce((select max(odometer_km) from public.fuel_logs where bike_id = target_bike_id), 0)
+        ),
         avg_mileage = case when tot_litres > 0 then round(tot_dist / tot_litres, 2) else null end
-    where id = p_bike_id;
+  where b.id = target_bike_id;
 end;
-$$ language plpgsql security definer;
+$function$;
 
-create or replace function public.fuel_logs_recalc_trigger()
-returns trigger as $$
+create or replace function public.trg_recompute_fuel_stats()
+returns trigger
+language plpgsql
+security definer
+as $function$
 begin
-  if tg_op in ('UPDATE', 'DELETE') then
-    perform public.recompute_bike_mileage(old.bike_id);
+  -- recompute updates fuel_logs rows, which would re-fire this trigger;
+  -- skip nested firings.
+  if pg_trigger_depth() > 1 then
+    if (tg_op = 'DELETE') then return old; end if;
+    return new;
   end if;
-  if tg_op = 'INSERT' then
-    perform public.recompute_bike_mileage(new.bike_id);
-  elsif tg_op = 'UPDATE' and new.bike_id is distinct from old.bike_id then
-    perform public.recompute_bike_mileage(new.bike_id);
+  if (tg_op = 'DELETE') then
+    perform public.recompute_bike_fuel_stats(old.bike_id);
+    return old;
   end if;
-  return null;
+  perform public.recompute_bike_fuel_stats(new.bike_id);
+  if (tg_op = 'UPDATE' and old.bike_id is distinct from new.bike_id) then
+    perform public.recompute_bike_fuel_stats(old.bike_id);
+  end if;
+  return new;
 end;
-$$ language plpgsql security definer;
+$function$;
 
--- Old BEFORE INSERT trigger is replaced by AFTER triggers.
 drop trigger if exists trg_calc_fuel_mileage on public.fuel_logs;
-drop trigger if exists trg_fuel_recalc_ins_del on public.fuel_logs;
-drop trigger if exists trg_fuel_recalc_upd on public.fuel_logs;
+drop trigger if exists trg_fuel_stats_after_change on public.fuel_logs;
+create trigger trg_fuel_stats_after_change
+  after insert or delete or update on public.fuel_logs
+  for each row execute function public.trg_recompute_fuel_stats();
 
-create trigger trg_fuel_recalc_ins_del
-  after insert or delete on public.fuel_logs
-  for each row execute procedure public.fuel_logs_recalc_trigger();
-
--- Column list excludes "mileage", so the recompute's own UPDATEs
--- never re-fire this trigger.
-create trigger trg_fuel_recalc_upd
-  after update of litres, odometer_km, full_tank, bike_id on public.fuel_logs
-  for each row execute procedure public.fuel_logs_recalc_trigger();
-
--- Backfill: recompute every bike from its existing logs.
 do $$
 declare b record;
 begin
   for b in select distinct bike_id from public.fuel_logs loop
-    perform public.recompute_bike_mileage(b.bike_id);
+    perform public.recompute_bike_fuel_stats(b.bike_id);
   end loop;
 end $$;
 
