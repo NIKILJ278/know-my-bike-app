@@ -118,30 +118,35 @@ as $function$
 declare
   r record;
   prev_odometer numeric;
-  last_odometer numeric;
   accumulated_litres numeric := 0;
   has_anchor boolean := false;
   seg_mileage numeric;
-  tot_dist numeric := 0;
-  tot_litres numeric := 0;
+  first_odometer numeric;
+  first_litres numeric := 0;
+  last_odometer numeric;
+  sum_litres numeric := 0;
+  overall numeric := null;
 begin
-  -- Full-to-full: walk fills in odometer order, accumulate litres (partials
-  -- included) and close a segment on each full-tank fill.
   for r in
     select id, litres, odometer_km, full_tank
     from public.fuel_logs
     where bike_id = target_bike_id
     order by odometer_km asc, created_at asc
   loop
-    accumulated_litres := accumulated_litres + coalesce(r.litres, 0);
+    -- Whole-log totals: every fill counts, full tank or not.
+    if first_odometer is null then
+      first_odometer := r.odometer_km;
+      first_litres := coalesce(r.litres, 0);
+    end if;
     last_odometer := r.odometer_km;
-    seg_mileage := null;
+    sum_litres := sum_litres + coalesce(r.litres, 0);
 
+    -- Per-fill figure stays full-to-full (partials included in the litres).
+    accumulated_litres := accumulated_litres + coalesce(r.litres, 0);
+    seg_mileage := null;
     if r.full_tank then
       if has_anchor and r.odometer_km > prev_odometer and accumulated_litres > 0 then
         seg_mileage := round((r.odometer_km - prev_odometer) / accumulated_litres, 2);
-        tot_dist := tot_dist + (r.odometer_km - prev_odometer);
-        tot_litres := tot_litres + accumulated_litres;
       end if;
       prev_odometer := r.odometer_km;
       accumulated_litres := 0;
@@ -152,21 +157,18 @@ begin
       where id = r.id and mileage is distinct from seg_mileage;
   end loop;
 
-  -- Also count the open stretch: partial fills logged AFTER the last
-  -- full-tank fill (distance = latest odometer - last full-tank odometer,
-  -- litres = every partial fill since then).
-  if has_anchor and last_odometer > prev_odometer and accumulated_litres > 0 then
-    tot_dist := tot_dist + (last_odometer - prev_odometer);
-    tot_litres := tot_litres + accumulated_litres;
+  -- Bike mileage = total distance between first and latest fill divided by
+  -- all litres added after the first fill (the first fill's fuel was burned
+  -- before the first reading).
+  if first_odometer is not null
+     and last_odometer > first_odometer
+     and (sum_litres - first_litres) > 0 then
+    overall := round((last_odometer - first_odometer) / (sum_litres - first_litres), 2);
   end if;
 
-  -- Bike average = total distance / total litres (weighted).
   update public.bikes b
-    set odometer_km = greatest(
-          coalesce(b.odometer_km, 0),
-          coalesce((select max(odometer_km) from public.fuel_logs where bike_id = target_bike_id), 0)
-        ),
-        avg_mileage = case when tot_litres > 0 then round(tot_dist / tot_litres, 2) else null end
+    set odometer_km = greatest(coalesce(b.odometer_km, 0), coalesce(last_odometer, 0)),
+        avg_mileage = overall
   where b.id = target_bike_id;
 end;
 $function$;
