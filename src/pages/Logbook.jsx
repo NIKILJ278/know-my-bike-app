@@ -24,9 +24,9 @@ export default function Logbook() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  const expenses = useTable('expenses', activeBike?.id)
-  const fuel = useTable('fuel_logs', activeBike?.id)
-  const trips = useTable('trips', activeBike?.id)
+  const expenses = useTable('expenses', activeBike?.id, { column: 'logged_at', ascending: false })
+  const fuel = useTable('fuel_logs', activeBike?.id, { column: 'logged_at', ascending: false })
+  const trips = useTable('trips', activeBike?.id, { column: 'logged_at', ascending: false })
 
   const tableForTab = { Expenses: expenses, Fuel: fuel, Trips: trips }[tab]
 

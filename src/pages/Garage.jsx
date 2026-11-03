@@ -23,9 +23,9 @@ export default function Garage() {
   const budget = activeBike?.monthly_budget ?? null
   const [budgetInput, setBudgetInput] = useState('')
 
-  const fuel = useTable('fuel_logs', activeBike?.id)
-  const expenses = useTable('expenses', activeBike?.id)
-  const trips = useTable('trips', activeBike?.id)
+  const fuel = useTable('fuel_logs', activeBike?.id, { column: 'logged_at', ascending: false })
+  const expenses = useTable('expenses', activeBike?.id, { column: 'logged_at', ascending: false })
+  const trips = useTable('trips', activeBike?.id, { column: 'logged_at', ascending: false })
   const reminders = useTable('reminders', activeBike?.id, { column: 'created_at', ascending: true })
 
   const displayName = profile?.username || user?.user_metadata?.username || user?.email?.split('@')[0] || 'Rider'

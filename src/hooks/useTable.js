@@ -41,6 +41,7 @@ export function useTable(table, bikeId, orderBy = { column: 'created_at', ascend
         .select('*')
         .eq('bike_id', bikeId)
         .order(orderBy.column, { ascending: orderBy.ascending })
+        .order('created_at', { ascending: orderBy.ascending })
       if (!error) {
         setRows(data || [])
         writeCache(table, bikeId, data || [])

@@ -85,9 +85,9 @@ export default function Profile() {
     const totalDistance = trips.reduce((s, r) => s + Number(r.distance_km || 0), 0)
     const combinedOdometer = bikes.reduce((s, b) => s + Number(b.odometer_km || 0), 0)
 
-    const mileageReadings = fuel.filter((r) => r.mileage).map((r) => Number(r.mileage))
-    const avgMileage = mileageReadings.length
-      ? Math.round((mileageReadings.reduce((s, m) => s + m, 0) / mileageReadings.length) * 10) / 10
+    const bikeMileages = bikes.filter((b) => b.avg_mileage).map((b) => Number(b.avg_mileage))
+    const avgMileage = bikeMileages.length
+      ? Math.round((bikeMileages.reduce((s, m) => s + m, 0) / bikeMileages.length) * 10) / 10
       : null
 
     const costPerKm = combinedOdometer > 0 ? Math.round((lifetimeSpend / combinedOdometer) * 100) / 100 : null

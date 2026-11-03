@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import Sheet from '../Sheet.jsx'
+import DateField from '../DateField.jsx'
+import { toInputDate, fromInputDate } from '../../lib/format'
 
 export default function LogFuelModal({ bikeName, onClose, onSave, initial }) {
   const [litres, setLitres] = useState(initial?.litres != null ? String(initial.litres) : '')
   const [amount, setAmount] = useState(initial?.amount != null ? String(initial.amount) : '')
   const [odometer, setOdometer] = useState(initial?.odometer_km != null ? String(initial.odometer_km) : '')
   const [fullTank, setFullTank] = useState(initial ? !!initial.full_tank : true)
+  const [date, setDate] = useState(toInputDate(initial?.logged_at))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -17,7 +20,7 @@ export default function LogFuelModal({ bikeName, onClose, onSave, initial }) {
       amount: Number(amount),
       odometer_km: Number(odometer),
       full_tank: fullTank,
-      ...(initial ? {} : { logged_at: new Date().toISOString() }),
+      logged_at: fromInputDate(date, initial?.logged_at),
     })
     setBusy(false)
     if (error) return setError(error.message)
@@ -27,6 +30,7 @@ export default function LogFuelModal({ bikeName, onClose, onSave, initial }) {
   return (
     <Sheet title={initial ? "Edit Fuel Fill" : "Log Fuel"} subtitle={`For ${bikeName}`} onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-6">
+        <DateField value={date} onChange={setDate} />
         <Field label="Litres *">
           <input className="input" type="number" step="0.01" inputMode="decimal" placeholder="8.0" value={litres} onChange={(e) => setLitres(e.target.value)} required />
         </Field>

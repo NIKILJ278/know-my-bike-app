@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import Sheet from '../Sheet.jsx'
+import DateField from '../DateField.jsx'
+import { toInputDate, fromInputDate } from '../../lib/format'
 
 export const EXPENSE_CATEGORIES = ['Service', 'Repair', 'Insurance', 'Accessories', 'Other']
 
@@ -7,6 +9,7 @@ export default function LogExpenseModal({ bikeName, onClose, onSave, initial }) 
   const [category, setCategory] = useState(initial?.category || 'Service')
   const [amount, setAmount] = useState(initial?.amount != null ? String(initial.amount) : '')
   const [note, setNote] = useState(initial?.note || '')
+  const [date, setDate] = useState(toInputDate(initial?.logged_at))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -15,7 +18,7 @@ export default function LogExpenseModal({ bikeName, onClose, onSave, initial }) 
     setError(''); setBusy(true)
     const { error } = await onSave({
       category, amount: Number(amount), note,
-      ...(initial ? {} : { logged_at: new Date().toISOString() }),
+      logged_at: fromInputDate(date, initial?.logged_at),
     })
     setBusy(false)
     if (error) return setError(error.message)
@@ -33,6 +36,8 @@ export default function LogExpenseModal({ bikeName, onClose, onSave, initial }) 
             >{c}</button>
           ))}
         </div>
+
+        <DateField value={date} onChange={setDate} />
 
         <div>
           <label className="block text-sm font-medium text-ink/70 dark:text-white/70 mb-2">Amount (₹) *</label>

@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import Sheet from '../Sheet.jsx'
+import DateField from '../DateField.jsx'
+import { toInputDate, fromInputDate } from '../../lib/format'
 
 const PURPOSES = ['Commute', 'Leisure', 'Touring', 'Off-road', 'Service run']
 
@@ -12,6 +14,7 @@ export default function LogTripModal({ bikeName, startOdometer = 0, onClose, onS
   const [editDistance, setEditDistance] = useState(initial?.distance_km != null ? String(initial.distance_km) : '')
   const [duration, setDuration] = useState(initial?.duration_min != null ? String(initial.duration_min) : '')
   const [endPlace, setEndPlace] = useState(initial?.end_place || '')
+  const [date, setDate] = useState(toInputDate(initial?.logged_at))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -38,7 +41,7 @@ export default function LogTripModal({ bikeName, startOdometer = 0, onClose, onS
       duration_min: Number(duration) || null,
       start_place: null,
       end_place: endPlace || null,
-      ...(isEdit ? {} : { logged_at: new Date().toISOString() }),
+      logged_at: fromInputDate(date, initial?.logged_at),
     })
     setBusy(false)
     if (error) return setError(error.message)
@@ -48,6 +51,8 @@ export default function LogTripModal({ bikeName, startOdometer = 0, onClose, onS
   return (
     <Sheet title={isEdit ? 'Edit Trip' : 'Log Trip'} subtitle={`For ${bikeName}`} onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-6">
+        <DateField value={date} onChange={setDate} />
+
         <Field label="Purpose">
           <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-1">
             {PURPOSES.map((p) => (
