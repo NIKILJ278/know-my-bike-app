@@ -81,6 +81,7 @@ create table if not exists public.bikes (
   photo_url text,
   odometer_km numeric default 0,
   avg_mileage numeric,
+  tank_capacity_l numeric check (tank_capacity_l is null or (tank_capacity_l > 0 and tank_capacity_l <= 100)),
   monthly_budget numeric,
   created_at timestamptz default now()
 );

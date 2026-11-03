@@ -3,18 +3,26 @@ import Sheet from '../Sheet.jsx'
 import DateField from '../DateField.jsx'
 import { toInputDate, fromInputDate } from '../../lib/format'
 
-export default function LogFuelModal({ bikeName, onClose, onSave, initial }) {
+export default function LogFuelModal({ bikeName, onClose, onSave, initial, tankCapacity, onSaveTankCapacity }) {
   const [litres, setLitres] = useState(initial?.litres != null ? String(initial.litres) : '')
   const [amount, setAmount] = useState(initial?.amount != null ? String(initial.amount) : '')
   const [odometer, setOdometer] = useState(initial?.odometer_km != null ? String(initial.odometer_km) : '')
   const [fullTank, setFullTank] = useState(initial ? !!initial.full_tank : true)
   const [date, setDate] = useState(toInputDate(initial?.logged_at))
+  const [tank, setTank] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
   const submit = async (e) => {
     e.preventDefault()
-    setError(''); setBusy(true)
+    setError('')
+    const capacity = tankCapacity || Number(tank) || null
+    if (!tankCapacity && !capacity) return setError('Please enter your fuel tank capacity.')
+    if (capacity && Number(litres) > capacity) {
+      return setError(`${litres} L is more than your tank capacity (${capacity} L). Check the litres, or the tank capacity.`)
+    }
+    setBusy(true)
+    if (!tankCapacity && capacity && onSaveTankCapacity) await onSaveTankCapacity(capacity)
     const { error } = await onSave({
       litres: Number(litres),
       amount: Number(amount),
@@ -31,6 +39,11 @@ export default function LogFuelModal({ bikeName, onClose, onSave, initial }) {
     <Sheet title={initial ? "Edit Fuel Fill" : "Log Fuel"} subtitle={`For ${bikeName}`} onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-6">
         <DateField value={date} onChange={setDate} />
+        {!tankCapacity && (
+          <Field label="Fuel tank capacity (litres) *">
+            <input className="input" type="number" step="0.1" min="0.5" max="100" inputMode="decimal" placeholder="11" value={tank} onChange={(e) => setTank(e.target.value)} required />
+          </Field>
+        )}
         <Field label="Litres *">
           <input className="input" type="number" step="0.01" inputMode="decimal" placeholder="8.0" value={litres} onChange={(e) => setLitres(e.target.value)} required />
         </Field>

@@ -13,7 +13,7 @@ import { exportToCSV } from '../lib/exportCSV'
 const TABS = ['Expenses', 'Fuel', 'Trips']
 
 export default function Logbook() {
-  const { activeBike } = useBikes()
+  const { activeBike, updateBike } = useBikes()
   const [tab, setTab] = useState('Expenses')
   const [filter, setFilter] = useState('All')
   const [query, setQuery] = useState('')
@@ -208,7 +208,7 @@ export default function Logbook() {
         <LogExpenseModal bikeName={activeBike.name} onClose={() => setShowModal(false)} onSave={(row) => expenses.add(row)} />
       )}
       {showModal && tab === 'Fuel' && (
-        <LogFuelModal bikeName={activeBike.name} onClose={() => setShowModal(false)} onSave={(row) => fuel.add(row)} />
+        <LogFuelModal bikeName={activeBike.name} tankCapacity={activeBike.tank_capacity_l} onSaveTankCapacity={(v) => updateBike(activeBike.id, { tank_capacity_l: v })} onClose={() => setShowModal(false)} onSave={(row) => fuel.add(row)} />
       )}
       {showModal && tab === 'Trips' && (
         <LogTripModal bikeName={activeBike.name} startOdometer={activeBike.odometer_km} onClose={() => setShowModal(false)} onSave={(row) => trips.add(row)} />
@@ -218,7 +218,7 @@ export default function Logbook() {
         <LogExpenseModal bikeName={activeBike.name} initial={editingRow} onClose={() => setEditingRow(null)} onSave={(patch) => expenses.update(editingRow.id, patch)} />
       )}
       {editingRow && tab === 'Fuel' && (
-        <LogFuelModal bikeName={activeBike.name} initial={editingRow} onClose={() => setEditingRow(null)} onSave={(patch) => fuel.update(editingRow.id, patch)} />
+        <LogFuelModal bikeName={activeBike.name} tankCapacity={activeBike.tank_capacity_l} onSaveTankCapacity={(v) => updateBike(activeBike.id, { tank_capacity_l: v })} initial={editingRow} onClose={() => setEditingRow(null)} onSave={(patch) => fuel.update(editingRow.id, patch)} />
       )}
       {editingRow && tab === 'Trips' && (
         <LogTripModal bikeName={activeBike.name} startOdometer={activeBike.odometer_km} initial={editingRow} onClose={() => setEditingRow(null)} onSave={(patch) => trips.update(editingRow.id, patch)} />

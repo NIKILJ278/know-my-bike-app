@@ -9,6 +9,7 @@ export default function AddBikeModal({ onClose, onSave }) {
   const [name, setName] = useState('')
   const [make, setMake] = useState('')
   const [odometer, setOdometer] = useState('')
+  const [tank, setTank] = useState('')
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
   const [error, setError] = useState('')
@@ -46,7 +47,7 @@ export default function AddBikeModal({ onClose, onSave }) {
       return setError(err.message || 'Photo upload failed — you can add one later.')
     }
 
-    const { error } = await onSave({ name, make, odometer_km: Number(odometer) || 0, photo_url })
+    const { error } = await onSave({ name, make, odometer_km: Number(odometer) || 0, tank_capacity_l: Number(tank) || null, photo_url })
     setBusy(false)
     if (error) return setError(error.message)
     onClose()
@@ -73,6 +74,7 @@ export default function AddBikeModal({ onClose, onSave }) {
         <input className="input" placeholder="Nickname — e.g. My Yamaha R15" value={name} onChange={(e) => setName(e.target.value)} required />
         <input className="input" placeholder="Make & model — e.g. Yamaha R15 V4" value={make} onChange={(e) => setMake(e.target.value)} />
         <input className="input" type="number" inputMode="numeric" placeholder="Current odometer (km)" value={odometer} onChange={(e) => setOdometer(e.target.value)} />
+        <input className="input" type="number" step="0.1" min="0.5" max="100" inputMode="decimal" placeholder="Fuel tank capacity (litres) — e.g. 11" value={tank} onChange={(e) => setTank(e.target.value)} required />
         {error && <p className="text-sm text-red-500">{error}</p>}
         <button className="btn-primary mt-2" disabled={busy}>{busy ? 'Saving…' : 'Add to garage'}</button>
       </form>

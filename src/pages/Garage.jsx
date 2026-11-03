@@ -236,7 +236,7 @@ export default function Garage() {
       </section>
 
       {modal === 'fuel' && (
-        <LogFuelModal bikeName={activeBike.name} onClose={closeModal} onSave={(row) => fuel.add(row)} />
+        <LogFuelModal bikeName={activeBike.name} tankCapacity={activeBike.tank_capacity_l} onSaveTankCapacity={(v) => updateBike(activeBike.id, { tank_capacity_l: v })} onClose={closeModal} onSave={(row) => fuel.add(row)} />
       )}
       {modal === 'expense' && (
         <LogExpenseModal bikeName={activeBike.name} onClose={closeModal} onSave={(row) => expenses.add(row)} />
