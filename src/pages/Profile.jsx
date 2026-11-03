@@ -9,7 +9,7 @@ import BikeLogo from '../components/BikeLogo.jsx'
 
 export default function Profile() {
   const { profile, user, signOut, updateProfile } = useAuth()
-  const { bikes, deleteBike } = useBikes()
+  const { bikes, deleteBike, updateBike } = useBikes()
   const bikeIds = useMemo(() => bikes.map((b) => b.id), [bikes])
   const { fuel, expenses, trips, documents, reminders, loading, refresh } = useUserReport(bikeIds)
 
@@ -333,6 +333,7 @@ export default function Profile() {
                   </button>
                 </div>
               ) : (
+                <>
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-xl bg-pastel-yellow flex items-center justify-center shrink-0"><BikeLogo size={20} className="text-amber-dark" /></div>
                   <div className="flex-1 min-w-0">
@@ -351,6 +352,8 @@ export default function Profile() {
                     <TrashIcon />
                   </button>
                 </div>
+                <TankCapacityRow bike={b} onSave={(v) => updateBike(b.id, { tank_capacity_l: v })} />
+                </>
               )}
             </div>
           ))}
@@ -369,6 +372,53 @@ export default function Profile() {
         <p className="text-center text-xs text-ink/30 dark:text-white/30 mt-4">Know My Bike · v1.0.0</p>
       </section>
     </div>
+  )
+}
+
+function TankCapacityRow({ bike, onSave }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const start = () => { setDraft(bike.tank_capacity_l != null ? String(bike.tank_capacity_l) : ''); setError(''); setEditing(true) }
+
+  const save = async (e) => {
+    e.preventDefault()
+    const v = Number(draft)
+    if (!v || v <= 0 || v > 100) return setError('Enter a capacity between 0.5 and 100 litres.')
+    setSaving(true); setError('')
+    const { error: err } = await onSave(v)
+    setSaving(false)
+    if (err) return setError(err.message)
+    setEditing(false)
+  }
+
+  if (!editing) {
+    return (
+      <div className="flex items-center justify-between mt-3 pl-14">
+        <p className="text-sm text-ink/50 dark:text-white/50">
+          Tank capacity: {bike.tank_capacity_l ? <span className="font-semibold text-ink dark:text-white">{Number(bike.tank_capacity_l)} L</span> : 'not set'}
+        </p>
+        <button onClick={start} className="tap text-sm font-semibold text-amber-dark dark:text-amber">
+          {bike.tank_capacity_l ? 'Edit' : 'Add tank capacity'}
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={save} className="mt-3 pl-14">
+      <div className="flex items-center gap-2">
+        <input
+          className="input flex-1" type="number" step="0.1" min="0.5" max="100" inputMode="decimal"
+          placeholder="Tank capacity (litres) — e.g. 11" value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus required
+        />
+        <button type="button" onClick={() => setEditing(false)} className="tap text-sm font-semibold text-ink/50 dark:text-white/50">Cancel</button>
+        <button disabled={saving} className="tap text-sm font-semibold text-amber-dark dark:text-amber">{saving ? 'Saving…' : 'Save'}</button>
+      </div>
+      {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
+    </form>
   )
 }
 
