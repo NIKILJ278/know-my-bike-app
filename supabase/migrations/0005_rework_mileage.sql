@@ -17,6 +17,7 @@ as $function$
 declare
   r record;
   prev_odometer numeric;
+  last_odometer numeric;
   accumulated_litres numeric := 0;
   has_anchor boolean := false;
   seg_mileage numeric;
@@ -32,6 +33,7 @@ begin
     order by odometer_km asc, created_at asc
   loop
     accumulated_litres := accumulated_litres + coalesce(r.litres, 0);
+    last_odometer := r.odometer_km;
     seg_mileage := null;
 
     if r.full_tank then
@@ -49,8 +51,15 @@ begin
       where id = r.id and mileage is distinct from seg_mileage;
   end loop;
 
-  -- Bike average = total distance / total litres (weighted), not a plain
-  -- mean of per-fill figures.
+  -- Also count the open stretch: partial fills logged AFTER the last
+  -- full-tank fill (distance = latest odometer - last full-tank odometer,
+  -- litres = every partial fill since then).
+  if has_anchor and last_odometer > prev_odometer and accumulated_litres > 0 then
+    tot_dist := tot_dist + (last_odometer - prev_odometer);
+    tot_litres := tot_litres + accumulated_litres;
+  end if;
+
+  -- Bike average = total distance / total litres (weighted).
   update public.bikes b
     set odometer_km = greatest(
           coalesce(b.odometer_km, 0),
